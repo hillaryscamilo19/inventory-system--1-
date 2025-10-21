@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { getSupabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -23,34 +22,32 @@ import { Plus, ArrowUpCircle } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 
 interface Product {
-  id: string
-  code: string
+  id: number
   name: string
-  unit: string
+  category: string
+  unit?: string
 }
 
 interface StockEntry {
-  id: string
-  entry_number: string
+  id: number
+  product_type: string
+  product_name: string
   quantity: number
   supplier: string
   entry_date: string
-  registered_by: string
+  created_by: string
   created_at: string
-  products: {
-    name: string
-    code: string
-    unit: string
-  }
 }
 
 export default function EntriesPage() {
   const { user } = useAuth()
-  const [products, setProducts] = useState<Product[]>([])
+  const [uniformes, setUniformes] = useState<Product[]>([])
+  const [medicamentos, setMedicamentos] = useState<Product[]>([])
   const [entries, setEntries] = useState<StockEntry[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
+    product_type: "uniform",
     product_id: "",
     quantity: "",
     supplier: "",
@@ -65,15 +62,20 @@ export default function EntriesPage() {
 
   async function loadProducts() {
     try {
-      const supabase = getSupabase()
-      const { data, error } = await supabase
-        .from("products")
-        .select("id, code, name, unit")
-        .eq("status", "active")
-        .order("name")
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://10.0.0.15:8000"
+      const token = localStorage.getItem("token")
 
-      if (error) throw error
-      setProducts(data || [])
+      const [uniformesData, medicamentosData] = await Promise.all([
+        fetch(`${API_URL}/uniforme`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }).then((res) => res.json()),
+        fetch(`${API_URL}/medicamento`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }).then((res) => res.json()),
+      ])
+
+      setUniformes(uniformesData.map((u: any) => ({ ...u, category: "uniform" })))
+      setMedicamentos(medicamentosData.map((m: any) => ({ ...m, category: "medication" })))
     } catch (error) {
       console.error("Error loading products:", error)
     }
@@ -81,18 +83,17 @@ export default function EntriesPage() {
 
   async function loadEntries() {
     try {
-      const supabase = getSupabase()
-      const { data, error } = await supabase
-        .from("stock_entries")
-        .select(`
-          *,
-          products (name, code, unit)
-        `)
-        .order("created_at", { ascending: false })
-        .limit(50)
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://10.0.0.15:8000"
+      const token = localStorage.getItem("token")
 
-      if (error) throw error
-      setEntries(data || [])
+      const response = await fetch(`${API_URL}/api/entries`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setEntries(data)
+      }
     } catch (error) {
       console.error("Error loading entries:", error)
     }
@@ -103,26 +104,30 @@ export default function EntriesPage() {
     setLoading(true)
 
     try {
-      const supabase = getSupabase()
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://10.0.0.15:8000"
+      const token = localStorage.getItem("token")
 
-      // Generate entry number
-      const entryNumber = `ENT-${Date.now()}`
-      const quantity = Number.parseInt(formData.quantity)
-
-      const { error } = await supabase.from("stock_entries").insert({
-        entry_number: entryNumber,
-        product_id: formData.product_id,
-        quantity,
-        supplier: formData.supplier,
-        entry_date: formData.entry_date,
-        notes: formData.notes || null,
-        registered_by: user?.name || "Sistema",
+      const response = await fetch(`${API_URL}/api/entries`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          product_type: formData.product_type,
+          product_id: Number.parseInt(formData.product_id),
+          quantity: Number.parseInt(formData.quantity),
+          supplier: formData.supplier,
+          entry_date: formData.entry_date,
+          notes: formData.notes || null,
+        }),
       })
 
-      if (error) throw error
+      if (!response.ok) throw new Error("Error al registrar entrada")
 
       // Reset form and reload data
       setFormData({
+        product_type: "uniform",
         product_id: "",
         quantity: "",
         supplier: "",
@@ -131,6 +136,7 @@ export default function EntriesPage() {
       })
       setIsDialogOpen(false)
       loadEntries()
+      loadProducts()
 
       alert("Entrada registrada exitosamente")
     } catch (error) {
@@ -140,6 +146,8 @@ export default function EntriesPage() {
       setLoading(false)
     }
   }
+
+  const allProducts = formData.product_type === "uniform" ? uniformes : medicamentos
 
   return (
     <div className="space-y-6">
@@ -164,6 +172,22 @@ export default function EntriesPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
+                  <Label htmlFor="product_type">Tipo de Producto *</Label>
+                  <Select
+                    value={formData.product_type}
+                    onValueChange={(value) => setFormData({ ...formData, product_type: value, product_id: "" })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="uniform">Uniforme</SelectItem>
+                      <SelectItem value="medication">Medicamento</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="col-span-2">
                   <Label htmlFor="product_id">Producto *</Label>
                   <Select
                     value={formData.product_id}
@@ -174,9 +198,9 @@ export default function EntriesPage() {
                       <SelectValue placeholder="Seleccione un producto" />
                     </SelectTrigger>
                     <SelectContent>
-                      {products.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.code} - {product.name}
+                      {allProducts.map((product) => (
+                        <SelectItem key={product.id} value={product.id.toString()}>
+                          {product.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -261,8 +285,8 @@ export default function EntriesPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Número</TableHead>
               <TableHead>Producto</TableHead>
+              <TableHead>Tipo</TableHead>
               <TableHead>Cantidad</TableHead>
               <TableHead>Proveedor</TableHead>
               <TableHead>Fecha</TableHead>
@@ -279,19 +303,12 @@ export default function EntriesPage() {
             ) : (
               entries.map((entry) => (
                 <TableRow key={entry.id}>
-                  <TableCell className="font-mono text-sm">{entry.entry_number}</TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{entry.products.name}</div>
-                      <div className="text-sm text-muted-foreground">{entry.products.code}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {entry.quantity} {entry.products.unit}
-                  </TableCell>
+                  <TableCell className="font-medium">{entry.product_name}</TableCell>
+                  <TableCell>{entry.product_type === "uniform" ? "Uniforme" : "Medicamento"}</TableCell>
+                  <TableCell>{entry.quantity}</TableCell>
                   <TableCell>{entry.supplier}</TableCell>
                   <TableCell>{new Date(entry.entry_date).toLocaleDateString()}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{entry.registered_by}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{entry.created_by}</TableCell>
                 </TableRow>
               ))
             )}
