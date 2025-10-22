@@ -1,13 +1,10 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
-import { getSupabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -16,172 +13,137 @@ import { ClipboardList, CheckCircle2, Package } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 
 interface Product {
-  id: string
-  code: string
+  id: number
   name: string
-  category: string
-  unit: string
-  current_stock: number
+  stock_actual: number
 }
 
 interface Employee {
-  id: string
-  employee_code: string
-  full_name: string
+  id: number
+  CodigoEmpleado: string
+  nombre: string
+  apellido: string
+  cargo: string
   area: string
-}
-
-interface Delivery {
-  id: string
-  exit_number: string
-  quantity: number
-  exit_date: string
-  movement_type: string
-  status: string
-  signature_data: string | null
-  created_at: string
-  products: {
-    name: string
-    code: string
-    category: string
-    unit: string
-  }
-  employees: {
-    full_name: string
-    employee_code: string
-    area: string
-  }
 }
 
 export default function DeliveriesPage() {
   const { user } = useAuth()
-  const [products, setProducts] = useState<Product[]>([])
+  const [uniformes, setUniformes] = useState<Product[]>([])
+  const [medicamentos, setMedicamentos] = useState<Product[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
-  const [deliveries, setDeliveries] = useState<Delivery[]>([])
+  const [deliveries, setDeliveries] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
-  const [signature, setSignature] = useState("")
   const [formData, setFormData] = useState({
-    employee_id: "",
+    empleado_id: "",
+    product_type: "uniform",
     product_id: "",
-    quantity: "",
-    delivery_date: new Date().toISOString().split("T")[0],
-    notes: "",
+    cantidad: "",
+    size: "",
+    firma: "",
   })
 
   useEffect(() => {
-    loadProducts()
-    loadEmployees()
-    loadDeliveries()
+    loadData()
   }, [])
 
-  async function loadProducts() {
+  async function loadData() {
+    const token = localStorage.getItem("token")
+    if (!token) return
+
     try {
-      const supabase = getSupabase()
-      const { data, error } = await supabase
-        .from("products")
-        .select("id, code, name, category, unit, current_stock")
-        .eq("status", "active")
-        .gt("current_stock", 0)
-        .order("name")
+      const [uniformsRes, medicationsRes, employeesRes, uniformDelRes, medDelRes] = await Promise.all([
+        fetch("http://10.0.0.15:8000/uniforme", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch("http://10.0.0.15:8000/medicamento", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch("http://10.0.0.15:8000/api/empleado/", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch("http://10.0.0.15:8000/uniforme/entrega", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch("http://10.0.0.15:8000/medicamento/entrega", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ])
 
-      if (error) throw error
-      setProducts(data || [])
+      if (uniformsRes.ok) setUniformes(await uniformsRes.json())
+      if (medicationsRes.ok) setMedicamentos(await medicationsRes.json())
+      if (employeesRes.ok) setEmployees(await employeesRes.json())
+
+      const allDeliveries = []
+      if (uniformDelRes.ok) {
+        const data = await uniformDelRes.json()
+        allDeliveries.push(...data.map((d: any) => ({ ...d, type: "uniform" })))
+      }
+      if (medDelRes.ok) {
+        const data = await medDelRes.json()
+        allDeliveries.push(...data.map((d: any) => ({ ...d, type: "medication" })))
+      }
+
+      allDeliveries.sort((a, b) => new Date(b.fecha_ingreso).getTime() - new Date(a.fecha_ingreso).getTime())
+      setDeliveries(allDeliveries)
     } catch (error) {
-      console.error("Error loading products:", error)
-    }
-  }
-
-  async function loadEmployees() {
-    try {
-      const supabase = getSupabase()
-      const { data, error } = await supabase
-        .from("employees")
-        .select("id, employee_code, full_name, area")
-        .eq("status", "active")
-        .order("full_name")
-
-      if (error) throw error
-      setEmployees(data || [])
-    } catch (error) {
-      console.error("Error loading employees:", error)
-    }
-  }
-
-  async function loadDeliveries() {
-    try {
-      const supabase = getSupabase()
-      const { data, error } = await supabase
-        .from("stock_exits")
-        .select(`
-          *,
-          products (name, code, category, unit),
-          employees (full_name, employee_code, area)
-        `)
-        .eq("movement_type", "delivered")
-        .order("created_at", { ascending: false })
-        .limit(100)
-
-      if (error) throw error
-      setDeliveries(data || [])
-    } catch (error) {
-      console.error("Error loading deliveries:", error)
+      console.error("Error loading data:", error)
     }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
-    if (!signature.trim()) {
+    if (!formData.firma.trim()) {
       alert("Por favor ingrese su firma digital")
       return
     }
 
     setLoading(true)
+    const token = localStorage.getItem("token")
 
     try {
-      const supabase = getSupabase()
+      const endpoint =
+        formData.product_type === "uniform"
+          ? "http://10.0.0.15:8000/uniforme/entrega"
+          : "http://10.0.0.15:8000/medicamento/entrega"
 
-      // Validate stock
-      const product = products.find((p) => p.id === formData.product_id)
-      const quantity = Number.parseInt(formData.quantity)
-
-      if (product && product.current_stock < quantity) {
-        alert("Stock insuficiente para esta entrega")
-        setLoading(false)
-        return
+      const payload: any = {
+        [`${formData.product_type === "uniform" ? "uniforme" : "medicamento"}_id`]: Number.parseInt(
+          formData.product_id,
+        ),
+        empleado_id: Number.parseInt(formData.empleado_id),
+        cantidad: Number.parseInt(formData.cantidad),
+        Area: employees.find((e) => e.id === Number.parseInt(formData.empleado_id))?.area || "",
+        firma: formData.firma,
       }
 
-      // Generate delivery number
-      const deliveryNumber = `DEL-${Date.now()}`
+      if (formData.product_type === "uniform") {
+        payload.size = formData.size
+      }
 
-      const { error } = await supabase.from("stock_exits").insert({
-        exit_number: deliveryNumber,
-        product_id: formData.product_id,
-        employee_id: formData.employee_id,
-        quantity,
-        movement_type: "delivered",
-        exit_date: formData.delivery_date,
-        status: "completed",
-        signature_data: signature,
-        notes: formData.notes || null,
-        registered_by: user?.name || "Sistema",
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
       })
 
-      if (error) throw error
+      if (!response.ok) throw new Error("Error al registrar la entrega")
 
-      // Reset form
       setFormData({
-        employee_id: "",
+        empleado_id: "",
+        product_type: "uniform",
         product_id: "",
-        quantity: "",
-        delivery_date: new Date().toISOString().split("T")[0],
-        notes: "",
+        cantidad: "",
+        size: "",
+        firma: "",
       })
-      setSignature("")
       setShowForm(false)
-      loadDeliveries()
-      loadProducts()
+      loadData()
 
       alert("Entrega registrada exitosamente")
     } catch (error) {
@@ -192,19 +154,21 @@ export default function DeliveriesPage() {
     }
   }
 
-  const selectedEmployee = employees.find((e) => e.id === formData.employee_id)
-  const selectedProduct = products.find((p) => p.id === formData.product_id)
+  const products = formData.product_type === "uniform" ? uniformes : medicamentos
+  const selectedEmployee = employees.find((e) => e.id === Number.parseInt(formData.empleado_id))
+  const selectedProduct = products.find((p) => p.id === Number.parseInt(formData.product_id))
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6 p-4 md:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Entregas a Empleados</h1>
-          <p className="text-muted-foreground mt-1">Registro de recepción de uniformes y medicamentos</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Entregas a Empleados</h1>
+          <p className="text-sm md:text-base text-muted-foreground mt-1">
+            Registro de recepción de uniformes y medicamentos
+          </p>
         </div>
         {!showForm && (
-          <Button onClick={() => setShowForm(true)}>
+          <Button onClick={() => setShowForm(true)} className="w-full sm:w-auto">
             <ClipboardList className="h-4 w-4 mr-2" />
             Nueva Entrega
           </Button>
@@ -213,22 +177,21 @@ export default function DeliveriesPage() {
 
       {/* Delivery Form */}
       {showForm && (
-        <Card className="p-6">
+        <Card className="p-4 md:p-6">
           <div className="mb-4">
-            <h2 className="text-xl font-semibold">Confirmar Recepción de Material</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Complete el formulario para confirmar la recepción de uniformes o medicamentos
+            <h2 className="text-lg md:text-xl font-semibold">Confirmar Recepción de Material</h2>
+            <p className="text-xs md:text-sm text-muted-foreground mt-1">
+              Complete el formulario para confirmar la recepción
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Employee Selection */}
               <div className="md:col-span-2">
                 <Label htmlFor="employee_id">Empleado *</Label>
                 <Select
-                  value={formData.employee_id}
-                  onValueChange={(value) => setFormData({ ...formData, employee_id: value })}
+                  value={formData.empleado_id}
+                  onValueChange={(value) => setFormData({ ...formData, empleado_id: value })}
                   required
                 >
                   <SelectTrigger>
@@ -236,25 +199,40 @@ export default function DeliveriesPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {employees.map((employee) => (
-                      <SelectItem key={employee.id} value={employee.id}>
-                        {employee.full_name} - {employee.employee_code}
+                      <SelectItem key={employee.id} value={employee.id.toString()}>
+                        {employee.nombre} - {employee.CodigoEmpleado}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 {selectedEmployee && (
-                  <div className="mt-2 p-3 bg-muted rounded-lg">
-                    <p className="text-sm">
+                  <div className="mt-2 p-3 bg-muted rounded-lg text-sm">
+                    <p>
                       <span className="font-medium">Área:</span> {selectedEmployee.area}
                     </p>
-                    <p className="text-sm">
-                      <span className="font-medium">Código:</span> {selectedEmployee.employee_code}
+                    <p>
+                      <span className="font-medium">Código:</span> {selectedEmployee.CodigoEmpleado}
                     </p>
                   </div>
                 )}
               </div>
 
-              {/* Product Selection */}
+              <div className="md:col-span-2">
+                <Label htmlFor="product_type">Tipo de Material *</Label>
+                <Select
+                  value={formData.product_type}
+                  onValueChange={(value) => setFormData({ ...formData, product_type: value, product_id: "" })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="uniform">Uniforme</SelectItem>
+                    <SelectItem value="medication">Medicamento</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="md:col-span-2">
                 <Label htmlFor="product_id">Material Recibido *</Label>
                 <Select
@@ -267,8 +245,8 @@ export default function DeliveriesPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {products.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name} - {product.code} (Disponible: {product.current_stock})
+                      <SelectItem key={product.id} value={product.id.toString()}>
+                        {product.name} (Disponible: {product.stock_actual})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -276,67 +254,55 @@ export default function DeliveriesPage() {
                 {selectedProduct && (
                   <div className="mt-2 p-3 bg-muted rounded-lg">
                     <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm">
-                          <span className="font-medium">Tipo:</span>{" "}
-                          {selectedProduct.category === "uniform" ? "Uniforme" : "Medicamento"}
-                        </p>
-                        <p className="text-sm">
-                          <span className="font-medium">Stock disponible:</span> {selectedProduct.current_stock}{" "}
-                          {selectedProduct.unit}
+                      <div className="text-sm">
+                        <p>
+                          <span className="font-medium">Stock disponible:</span> {selectedProduct.stock_actual} unidades
                         </p>
                       </div>
-                      <Package className="h-8 w-8 text-muted-foreground" />
+                      <Package className="h-6 w-6 md:h-8 md:w-8 text-muted-foreground" />
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Quantity */}
               <div>
                 <Label htmlFor="quantity">Cantidad Recibida *</Label>
                 <Input
                   id="quantity"
                   type="number"
                   min="1"
-                  max={selectedProduct?.current_stock || 999}
-                  value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                  max={selectedProduct?.stock_actual || 999}
+                  value={formData.cantidad}
+                  onChange={(e) => setFormData({ ...formData, cantidad: e.target.value })}
                   required
                 />
               </div>
 
-              {/* Date */}
-              <div>
-                <Label htmlFor="delivery_date">Fecha de Recepción *</Label>
-                <Input
-                  id="delivery_date"
-                  type="date"
-                  value={formData.delivery_date}
-                  onChange={(e) => setFormData({ ...formData, delivery_date: e.target.value })}
-                  required
-                />
-              </div>
+              {formData.product_type === "uniform" && (
+                <div>
+                  <Label htmlFor="size">Talla *</Label>
+                  <Select value={formData.size} onValueChange={(value) => setFormData({ ...formData, size: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccione talla" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="XS">XS</SelectItem>
+                      <SelectItem value="S">S</SelectItem>
+                      <SelectItem value="M">M</SelectItem>
+                      <SelectItem value="L">L</SelectItem>
+                      <SelectItem value="XL">XL</SelectItem>
+                      <SelectItem value="XXL">XXL</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
-              {/* Notes */}
-              <div className="md:col-span-2">
-                <Label htmlFor="notes">Observaciones</Label>
-                <Textarea
-                  id="notes"
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  rows={2}
-                  placeholder="Ingrese cualquier observación sobre el material recibido"
-                />
-              </div>
-
-              {/* Digital Signature */}
               <div className="md:col-span-2">
                 <Label htmlFor="signature">Firma Digital (Nombre Completo) *</Label>
                 <Input
                   id="signature"
-                  value={signature}
-                  onChange={(e) => setSignature(e.target.value)}
+                  value={formData.firma}
+                  onChange={(e) => setFormData({ ...formData, firma: e.target.value })}
                   placeholder="Escriba su nombre completo como firma"
                   required
                 />
@@ -346,25 +312,26 @@ export default function DeliveriesPage() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => {
                   setShowForm(false)
                   setFormData({
-                    employee_id: "",
+                    empleado_id: "",
+                    product_type: "uniform",
                     product_id: "",
-                    quantity: "",
-                    delivery_date: new Date().toISOString().split("T")[0],
-                    notes: "",
+                    cantidad: "",
+                    size: "",
+                    firma: "",
                   })
-                  setSignature("")
                 }}
+                className="w-full sm:w-auto"
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={loading}>
+              <Button type="submit" disabled={loading} className="w-full sm:w-auto">
                 <CheckCircle2 className="h-4 w-4 mr-2" />
                 {loading ? "Registrando..." : "Confirmar Recepción"}
               </Button>
@@ -373,115 +340,101 @@ export default function DeliveriesPage() {
         </Card>
       )}
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+      <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-3">
+        <Card className="p-3 md:p-4">
+          <div className="flex items-center gap-2 md:gap-3">
             <div className="p-2 bg-primary/10 rounded-lg">
-              <ClipboardList className="h-5 w-5 text-primary" />
+              <ClipboardList className="h-4 w-4 md:h-5 md:w-5 text-primary" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Entregas</p>
-              <p className="text-2xl font-bold">{deliveries.length}</p>
+              <p className="text-xs md:text-sm text-muted-foreground">Total Entregas</p>
+              <p className="text-xl md:text-2xl font-bold">{deliveries.length}</p>
             </div>
           </div>
         </Card>
 
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-3 md:p-4">
+          <div className="flex items-center gap-2 md:gap-3">
             <div className="p-2 bg-blue-500/10 rounded-lg">
-              <Package className="h-5 w-5 text-blue-500" />
+              <Package className="h-4 w-4 md:h-5 md:w-5 text-blue-500" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Uniformes Entregados</p>
-              <p className="text-2xl font-bold">{deliveries.filter((d) => d.products.category === "uniform").length}</p>
+              <p className="text-xs md:text-sm text-muted-foreground">Uniformes</p>
+              <p className="text-xl md:text-2xl font-bold">{deliveries.filter((d) => d.type === "uniform").length}</p>
             </div>
           </div>
         </Card>
 
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-3 md:p-4">
+          <div className="flex items-center gap-2 md:gap-3">
             <div className="p-2 bg-green-500/10 rounded-lg">
-              <Package className="h-5 w-5 text-green-500" />
+              <Package className="h-4 w-4 md:h-5 md:w-5 text-green-500" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Medicamentos Entregados</p>
-              <p className="text-2xl font-bold">
-                {deliveries.filter((d) => d.products.category === "medication").length}
+              <p className="text-xs md:text-sm text-muted-foreground">Medicamentos</p>
+              <p className="text-xl md:text-2xl font-bold">
+                {deliveries.filter((d) => d.type === "medication").length}
               </p>
             </div>
           </div>
         </Card>
       </div>
 
-      {/* Deliveries History */}
       <Card>
-        <div className="p-4 border-b">
-          <h2 className="text-lg font-semibold">Historial de Entregas</h2>
+        <div className="p-3 md:p-4 border-b">
+          <h2 className="text-base md:text-lg font-semibold">Historial de Entregas</h2>
         </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Número</TableHead>
-              <TableHead>Empleado</TableHead>
-              <TableHead>Material</TableHead>
-              <TableHead>Cantidad</TableHead>
-              <TableHead>Fecha</TableHead>
-              <TableHead>Firma</TableHead>
-              <TableHead>Estado</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {deliveries.length === 0 ? (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                  No hay entregas registradas
-                </TableCell>
+                <TableHead className="min-w-[80px]">ID</TableHead>
+                <TableHead className="min-w-[100px]">Tipo</TableHead>
+                <TableHead className="min-w-[100px]">Cantidad</TableHead>
+                <TableHead className="min-w-[100px]">Área</TableHead>
+                <TableHead className="min-w-[80px]">Talla</TableHead>
+                <TableHead className="min-w-[100px]">Firma</TableHead>
+                <TableHead className="min-w-[120px]">Fecha</TableHead>
               </TableRow>
-            ) : (
-              deliveries.map((delivery) => (
-                <TableRow key={delivery.id}>
-                  <TableCell className="font-mono text-sm">{delivery.exit_number}</TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{delivery.employees.full_name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {delivery.employees.employee_code} - {delivery.employees.area}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{delivery.products.name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        <Badge variant="outline" className="text-xs">
-                          {delivery.products.category === "uniform" ? "Uniforme" : "Medicamento"}
-                        </Badge>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {delivery.quantity} {delivery.products.unit}
-                  </TableCell>
-                  <TableCell>{new Date(delivery.exit_date).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    {delivery.signature_data ? (
-                      <div className="flex items-center gap-1 text-green-600">
-                        <CheckCircle2 className="h-4 w-4" />
-                        <span className="text-sm">Firmado</span>
-                      </div>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">Sin firma</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="default">Completado</Badge>
+            </TableHeader>
+            <TableBody>
+              {deliveries.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    No hay entregas registradas
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                deliveries.map((delivery) => (
+                  <TableRow key={delivery.id}>
+                    <TableCell className="font-mono text-xs md:text-sm">{delivery.id}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs">
+                        {delivery.type === "uniform" ? "Uniforme" : "Medicamento"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm md:text-base">{delivery.cantidad}</TableCell>
+                    <TableCell className="text-sm md:text-base">{delivery.Area}</TableCell>
+                    <TableCell className="text-sm md:text-base">{delivery.size || "-"}</TableCell>
+                    <TableCell>
+                      {delivery.firma ? (
+                        <div className="flex items-center gap-1 text-green-600">
+                          <CheckCircle2 className="h-3 w-3 md:h-4 md:w-4" />
+                          <span className="text-xs md:text-sm">Firmado</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs md:text-sm text-muted-foreground">Sin firma</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs md:text-sm">
+                      {new Date(delivery.fecha_ingreso).toLocaleDateString()}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </Card>
     </div>
   )
