@@ -427,7 +427,7 @@ export default function DeliveriesPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-xs md:text-sm">
-                      {new Date(delivery.fecha_ingreso).toLocaleDateString()}
+                      {new Date(delivery.created_at).toLocaleDateString()}
                     </TableCell>
                   </TableRow>
                 ))

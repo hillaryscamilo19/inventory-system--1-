@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Search, Plus, AlertTriangle, Package, TrendingDown, TrendingUp } from "lucide-react"
+import { Search, Plus, AlertTriangle, Package, TrendingDown, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import {
   Dialog,
@@ -45,6 +45,8 @@ export default function InventoryPage() {
   const [stockFilter, setStockFilter] = useState("all")
   const [loading, setLoading] = useState(true)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
   const [newProduct, setNewProduct] = useState({
     name: "",
     category: "uniform",
@@ -59,6 +61,7 @@ export default function InventoryPage() {
 
   useEffect(() => {
     filterProducts()
+    setCurrentPage(1)
   }, [uniformes, medicamentos, searchTerm, categoryFilter, stockFilter])
 
   async function loadProducts() {
@@ -123,6 +126,11 @@ export default function InventoryPage() {
     }
   }
 
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentProducts = filteredProducts.slice(startIndex, endIndex)
+
   const allProducts = [...uniformes, ...medicamentos]
   const stats = {
     total: allProducts.length,
@@ -167,7 +175,7 @@ export default function InventoryPage() {
       }
 
       console.log("[v0] Sending product data:", JSON.stringify(productData, null, 2))
-      console.log("[v0] Endpoint:", `${process.env.NEXT_PUBLIC_API_URL || "http://1.0.0.0.15:8000"}${endpoint}`)
+      console.log("[v0] Endpoint:", `${process.env.NEXT_PUBLIC_API_URL || "http://10.0.0.15:8000"}${endpoint}`)
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://10.0.0.15:8000"}${endpoint}`, {
         method: "POST",
@@ -184,11 +192,9 @@ export default function InventoryPage() {
         const errorData = await response.json()
         console.error("[v0] Error response:", JSON.stringify(errorData, null, 2))
 
-        // Extract validation errors if present
         let errorMessage = "Error al agregar producto"
         if (errorData.detail) {
           if (Array.isArray(errorData.detail)) {
-            // Pydantic validation errors
             errorMessage = errorData.detail.map((err: any) => `${err.loc.join(".")}: ${err.msg}`).join("\n")
           } else if (typeof errorData.detail === "string") {
             errorMessage = errorData.detail
@@ -221,7 +227,6 @@ export default function InventoryPage() {
 
   return (
     <div className="space-y-4 md:space-y-6 p-3 md:p-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 md:gap-4">
         <div>
           <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">Inventario</h1>
@@ -442,14 +447,14 @@ export default function InventoryPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProducts.length === 0 ? (
+              {currentProducts.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-xs md:text-sm text-muted-foreground">
                     No se encontraron productos
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredProducts.map((product) => {
+                currentProducts.map((product) => {
                   const status = getStockStatus(product)
                   const StatusIcon = status.icon
                   return (
@@ -463,7 +468,8 @@ export default function InventoryPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs md:text-sm text-muted-foreground">
-                        {product.talla || product.fecha_vencimiento || "-"}
+                        {new Date(product.talla || product.fecha_vencimiento || "-" ).toLocaleDateString()}
+               
                       </TableCell>
                       <TableCell className="text-right font-semibold text-xs md:text-sm">
                         {product.stock_actual}
@@ -487,6 +493,58 @@ export default function InventoryPage() {
             </TableBody>
           </Table>
         </div>
+        {filteredProducts.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 md:p-4 border-t">
+            <div className="text-xs md:text-sm text-muted-foreground">
+              Mostrando {startIndex + 1} a {Math.min(endIndex, filteredProducts.length)} de {filteredProducts.length}{" "}
+              productos
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                  if (page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)) {
+                    return (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(page)}
+                        className="h-8 w-8 p-0 text-xs"
+                      >
+                        {page}
+                      </Button>
+                    )
+                  } else if (page === currentPage - 2 || page === currentPage + 2) {
+                    return (
+                      <span key={page} className="px-1 text-muted-foreground">
+                        ...
+                      </span>
+                    )
+                  }
+                  return null
+                })}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   )
