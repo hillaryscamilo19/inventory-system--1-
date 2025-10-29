@@ -66,8 +66,6 @@ export default function ExitsPage() {
   })
 
 
-
-
   useEffect(() => {
     loadData()
   }, [])
