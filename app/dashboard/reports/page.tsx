@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { getSupabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { FileText, Download, Filter, TrendingUp, TrendingDown } from "lucide-react"
+import { api, Employee, Product } from "@/lib/api-client"
 
 interface ReportData {
   id: string
@@ -28,18 +28,6 @@ interface ReportData {
   supplier?: string
   registered_by: string
   notes?: string
-}
-
-interface Product {
-  id: string
-  code: string
-  name: string
-}
-
-interface Employee {
-  id: string
-  employee_code: string
-  full_name: string
 }
 
 export default function ReportsPage() {
@@ -69,11 +57,8 @@ export default function ReportsPage() {
 
   async function loadProducts() {
     try {
-      const supabase = getSupabase()
-      const { data, error } = await supabase.from("products").select("id, code, name").order("name")
-
-      if (error) throw error
-      setProducts(data || [])
+      const data = await api.products.getAll()
+      setProducts(data)
     } catch (error) {
       console.error("Error loading products:", error)
     }
@@ -81,11 +66,8 @@ export default function ReportsPage() {
 
   async function loadEmployees() {
     try {
-      const supabase = getSupabase()
-      const { data, error } = await supabase.from("employees").select("id, employee_code, full_name").order("full_name")
-
-      if (error) throw error
-      setEmployees(data || [])
+      const data = await api.employees.getAll()
+      setEmployees(data)
     } catch (error) {
       console.error("Error loading employees:", error)
     }
@@ -94,124 +76,86 @@ export default function ReportsPage() {
   async function loadReportData() {
     setLoading(true)
     try {
-      const supabase = getSupabase()
-      const allData: ReportData[] = []
+      const productType = filters.category === "all" ? "all" : filters.category === "uniform" ? "uniform" : "medication"
 
-      // Load entries
-      if (filters.type === "all" || filters.type === "entry") {
-        let entriesQuery = supabase
-          .from("stock_entries")
-          .select(
-            `
-          id,
-          entry_number,
-          entry_date,
-          quantity,
-          supplier,
-          registered_by,
-          notes,
-          products (code, name, category, unit)
-        `,
-          )
-          .order("entry_date", { ascending: false })
+      console.log("[v0] Fetching movements with filters:", {
+        start_date: filters.startDate || undefined,
+        end_date: filters.endDate || undefined,
+        employee_id: filters.employeeId !== "all" ? Number.parseInt(filters.employeeId) : undefined,
+        product_type: productType,
+      })
 
-        if (filters.startDate) {
-          entriesQuery = entriesQuery.gte("entry_date", filters.startDate)
+      const response = await api.reports.getMovements({
+        start_date: filters.startDate || undefined,
+        end_date: filters.endDate || undefined,
+        employee_id: filters.employeeId !== "all" ? Number.parseInt(filters.employeeId) : undefined,
+        product_type: productType,
+      })
+
+      console.log("[v0] API response:", response)
+
+      let data = response
+
+      // If the response is wrapped in an object, extract the array
+      if (response && typeof response === "object" && !Array.isArray(response)) {
+        // Check common wrapper properties
+        if ("movements" in response) {
+          data = response.movements
+        } else if ("data" in response) {
+          data = response.data
+        } else if ("results" in response) {
+          data = response.results
         }
-        if (filters.endDate) {
-          entriesQuery = entriesQuery.lte("entry_date", filters.endDate)
-        }
-        if (filters.productId !== "all") {
-          entriesQuery = entriesQuery.eq("product_id", filters.productId)
-        }
-
-        const { data: entries, error: entriesError } = await entriesQuery
-
-        if (entriesError) throw entriesError
-
-        entries?.forEach((entry: any) => {
-          if (filters.category === "all" || entry.products.category === filters.category) {
-            allData.push({
-              id: entry.id,
-              number: entry.entry_number,
-              date: entry.entry_date,
-              type: "entry",
-              product_name: entry.products.name,
-              product_code: entry.products.code,
-              category: entry.products.category,
-              quantity: entry.quantity,
-              unit: entry.products.unit,
-              supplier: entry.supplier,
-              registered_by: entry.registered_by,
-              notes: entry.notes,
-            })
-          }
-        })
       }
 
-      // Load exits
-      if (filters.type === "all" || filters.type === "exit") {
-        let exitsQuery = supabase
-          .from("stock_exits")
-          .select(
-            `
-          id,
-          exit_number,
-          exit_date,
-          quantity,
-          registered_by,
-          notes,
-          products (code, name, category, unit),
-          employees (employee_code, full_name, area)
-        `,
-          )
-          .order("exit_date", { ascending: false })
+      // Ensure data is an array
+      if (!Array.isArray(data)) {
+        console.error("[v0] Expected array but got:", typeof data, data)
+        setReportData([])
+        return
+      }
 
-        if (filters.startDate) {
-          exitsQuery = exitsQuery.gte("exit_date", filters.startDate)
-        }
-        if (filters.endDate) {
-          exitsQuery = exitsQuery.lte("exit_date", filters.endDate)
-        }
-        if (filters.productId !== "all") {
-          exitsQuery = exitsQuery.eq("product_id", filters.productId)
-        }
-        if (filters.employeeId !== "all") {
-          exitsQuery = exitsQuery.eq("employee_id", filters.employeeId)
-        }
+      console.log("[v0] Processing", data.length, "movements")
 
-        const { data: exits, error: exitsError } = await exitsQuery
+      const transformedData: ReportData[] = data.map((item: any) => ({
+        id: item.id?.toString() || "",
+        number: item.number || item.entry_number || item.exit_number || "",
+        date: item.date || item.entry_date || item.exit_date || "",
+        type: item.type || "entry",
+        product_name: item.product_name || item.product?.name || "",
+        product_code: item.product_code || item.product?.code || "",
+        category: item.category || item.product?.category || "",
+        quantity: item.quantity || 0,
+        unit: item.unit || item.product?.unit || "",
+        employee_name: item.employee_name || item.employee?.name || undefined,
+        employee_code: item.employee_code || item.employee?.code || undefined,
+        area: item.area || item.employee?.area || undefined,
+        supplier: item.supplier || undefined,
+        registered_by: item.registered_by || item.created_by || "",
+        notes: item.notes || undefined,
+      }))
 
-        if (exitsError) throw exitsError
+      // Apply client-side filters
+      let filteredData = transformedData
 
-        exits?.forEach((exit: any) => {
-          if (filters.category === "all" || exit.products.category === filters.category) {
-            allData.push({
-              id: exit.id,
-              number: exit.exit_number,
-              date: exit.exit_date,
-              type: "exit",
-              product_name: exit.products.name,
-              product_code: exit.products.code,
-              category: exit.products.category,
-              quantity: exit.quantity,
-              unit: exit.products.unit,
-              employee_name: exit.employees.full_name,
-              employee_code: exit.employees.employee_code,
-              area: exit.employees.area,
-              registered_by: exit.registered_by,
-              notes: exit.notes,
-            })
-          }
+      if (filters.type !== "all") {
+        filteredData = filteredData.filter((item) => item.type === filters.type)
+      }
+
+      if (filters.productId !== "all") {
+        filteredData = filteredData.filter((item) => {
+          const product = products.find((p) => p.id.toString() === filters.productId)
+          return product && item.product_name === product.name
         })
       }
 
       // Sort by date
-      allData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      filteredData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
-      setReportData(allData)
+      setReportData(filteredData)
     } catch (error) {
-      console.error("Error loading report data:", error)
+      console.error("[v0] Error loading report data:", error)
+      setReportData([])
     } finally {
       setLoading(false)
     }
@@ -357,8 +301,8 @@ export default function ReportsPage() {
               <SelectContent>
                 <SelectItem value="all">Todos los productos</SelectItem>
                 {products.map((product) => (
-                  <SelectItem key={product.id} value={product.id}>
-                    {product.code} - {product.name}
+                  <SelectItem key={`${product.type || product.category}-${product.id}`} value={product.id.toString()}>
+                    {product.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -374,8 +318,8 @@ export default function ReportsPage() {
               <SelectContent>
                 <SelectItem value="all">Todos los empleados</SelectItem>
                 {employees.map((employee) => (
-                  <SelectItem key={employee.id} value={employee.id}>
-                    {employee.employee_code} - {employee.full_name}
+                  <SelectItem key={employee.id} value={employee.id.toString()}>
+                    {employee.name}
                   </SelectItem>
                 ))}
               </SelectContent>
