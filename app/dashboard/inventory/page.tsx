@@ -59,8 +59,8 @@ export default function InventoryPage() {
   const [newProduct, setNewProduct] = useState({
     name: "",
     category: "uniform" as "uniform" | "medication",
-    current_stock: 0,
-    minimum_stock: 10,
+    stock_actual: 0,
+    stock_minimo: 10,
     unit: "unidad",
   });
 
@@ -111,23 +111,23 @@ export default function InventoryPage() {
     // Stock level filter
     if (stockFilter === "low") {
       allProducts = allProducts.filter(
-        (p) => p.current_stock <= p.minimum_stock && p.current_stock > 0
+        (p) => p.stock_actual <= p.stock_minimo && p.stock_actual > 0
       );
     } else if (stockFilter === "out") {
-      allProducts = allProducts.filter((p) => p.current_stock === 0);
+      allProducts = allProducts.filter((p) => p.stock_actual === 0);
     }
 
     setFilteredProducts(allProducts);
   }
 
   function getStockStatus(product: Product) {
-    if (product.current_stock === 0) {
+    if (product.stock_actual === 0) {
       return {
         label: "Sin Stock",
         variant: "destructive" as const,
         icon: AlertTriangle,
       };
-    } else if (product.current_stock <= product.minimum_stock) {
+    } else if (product.stock_actual <= product.stock_minimo) {
       return {
         label: "Stock Bajo",
         variant: "warning" as const,
@@ -151,9 +151,9 @@ export default function InventoryPage() {
   const stats = {
     total: allProducts.length,
     lowStock: allProducts.filter(
-      (p) => p.current_stock <= p.minimum_stock && p.current_stock > 0
+      (p) => p.stock_actual <= p.stock_minimo && p.stock_actual > 0
     ).length,
-    outOfStock: allProducts.filter((p) => p.current_stock === 0).length,
+    outOfStock: allProducts.filter((p) => p.stock_actual === 0).length,
     uniforms: uniformes.length,
     medications: medicamentos.length,
   };
@@ -176,8 +176,8 @@ export default function InventoryPage() {
       const productData = {
         name: newProduct.name.trim(),
         category: newProduct.category,
-        current_stock: Number(newProduct.current_stock),
-        minimum_stock: Number(newProduct.minimum_stock),
+        stock_actual: Number(newProduct.stock_actual),
+        stock_minimo: Number(newProduct.stock_minimo),
         unit: newProduct.unit,
       };
 
@@ -187,8 +187,8 @@ export default function InventoryPage() {
       setNewProduct({
         name: "",
         category: "uniform",
-        current_stock: 0,
-        minimum_stock: 10,
+        stock_actual: 0,
+        stock_minimo: 10,
         unit: "unidad",
       });
       loadProducts();
@@ -267,11 +267,11 @@ export default function InventoryPage() {
                       id="current_stock"
                       type="number"
                       min="0"
-                      value={newProduct.current_stock}
+                      value={newProduct.stock_actual}
                       onChange={(e) =>
                         setNewProduct({
                           ...newProduct,
-                          current_stock: Number.parseInt(e.target.value) || 0,
+                          stock_actual: Number.parseInt(e.target.value) || 0,
                         })
                       }
                     />
@@ -282,11 +282,11 @@ export default function InventoryPage() {
                       id="minimum_stock"
                       type="number"
                       min="0"
-                      value={newProduct.minimum_stock}
+                      value={newProduct.stock_minimo}
                       onChange={(e) =>
                         setNewProduct({
                           ...newProduct,
-                          minimum_stock: Number.parseInt(e.target.value) || 0,
+                          stock_minimo: Number.parseInt(e.target.value) || 0,
                         })
                       }
                     />
@@ -504,10 +504,10 @@ export default function InventoryPage() {
                         {product.unit || "-"}
                       </TableCell>
                       <TableCell className="text-right font-semibold text-xs md:text-sm">
-                        {product.current_stock}
+                        {product.stock_actual}
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground text-xs md:text-sm">
-                        {product.minimum_stock}
+                        {product.stock_minimo}
                       </TableCell>
                       <TableCell>
                         <Badge

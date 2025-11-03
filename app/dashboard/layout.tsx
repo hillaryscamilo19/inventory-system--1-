@@ -6,7 +6,7 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { DashboardNav } from "@/components/dashboard-nav"
-import { DashboardHeader } from "@/components/dashboard-header"
+import { DashboardHeader } from "@/app/login/dashboard-header"
 
 export default function DashboardLayout({
   children,

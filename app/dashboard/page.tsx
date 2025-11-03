@@ -153,8 +153,8 @@ export default function DashboardPage() {
                     <div className="flex-1">
                       <p className="text-sm font-medium">{activity.description}</p>
                       <p className="text-xs text-muted-foreground">
-                        {activity.created_at
-                          ? new Date(activity.created_at).toLocaleString("es-ES")
+                        {activity.date
+                          ? new Date(activity.date).toLocaleString("es-ES")
                           : "Fecha no disponible"}
                       </p>
                     </div>
