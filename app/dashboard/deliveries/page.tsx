@@ -388,7 +388,6 @@ export default function DeliveriesPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[80px]">ID</TableHead>
                 <TableHead className="min-w-[100px]">Tipo</TableHead>
                 <TableHead className="min-w-[100px]">Cantidad</TableHead>
                 <TableHead className="min-w-[100px]">Área</TableHead>
@@ -407,7 +406,6 @@ export default function DeliveriesPage() {
               ) : (
                 deliveries.map((delivery) => (
                   <TableRow key={delivery.id}>
-                    <TableCell className="font-mono text-xs md:text-sm">{delivery.id}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-xs">
                         {delivery.type === "uniform" ? "Uniforme" : "Medicamento"}

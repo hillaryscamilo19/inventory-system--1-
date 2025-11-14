@@ -375,7 +375,6 @@ export default function ExitsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[100px]">ID</TableHead>
                 <TableHead className="min-w-[120px]">Cantidad</TableHead>
                 <TableHead className="min-w-[100px]">Área</TableHead>
                 <TableHead className="min-w-[80px]">Talla</TableHead>
@@ -393,7 +392,6 @@ export default function ExitsPage() {
               ) : (
                 allDeliveries.map((delivery) => (
                   <TableRow key={delivery.id}>
-                    <TableCell className="font-mono text-xs md:text-sm">{delivery.id}</TableCell>
                     <TableCell className="text-sm md:text-base">{delivery.cantidad}</TableCell>
                     <TableCell className="text-sm md:text-base">{delivery.Area}</TableCell>
                     <TableCell className="text-sm md:text-base">{delivery.size || "-"}</TableCell>

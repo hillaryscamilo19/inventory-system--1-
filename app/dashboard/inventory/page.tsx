@@ -61,7 +61,8 @@ export default function InventoryPage() {
     category: "uniform" as "uniform" | "medication",
     stock_actual: 0,
     stock_minimo: 10,
-    unit: "unidad",
+
+  
   });
 
   useEffect(() => {
@@ -166,37 +167,47 @@ export default function InventoryPage() {
     );
   }
 
-  async function handleAddProduct() {
-    try {
-      if (!newProduct.name) {
-        alert("El nombre del producto es requerido");
-        return;
-      }
-
-      const productData = {
-        name: newProduct.name.trim(),
-        category: newProduct.category,
-        stock_actual: Number(newProduct.stock_actual),
-        stock_minimo: Number(newProduct.stock_minimo),
-        unit: newProduct.unit,
-      };
-
-      await api.products.create(productData);
-
-      setIsAddDialogOpen(false);
-      setNewProduct({
-        name: "",
-        category: "uniform",
-        stock_actual: 0,
-        stock_minimo: 10,
-        unit: "unidad",
-      });
-      loadProducts();
-    } catch (error: any) {
-      console.error("Error adding product:", error);
-      alert(`Error al agregar producto: ${error.message}`);
+async function handleAddProduct() {
+  try {
+    if (!newProduct.name) {
+      alert("El nombre del producto es requerido");
+      return;
     }
+
+    const now = new Date().toISOString();
+
+  const productData = {
+    name: newProduct.name,
+    stock_actual: newProduct.stock_actual || 0,
+    stock_minimo: newProduct.stock_minimo || 0,
+    estado: true,
+    fecha_ingreso: now,
+    fecha_vencimiento: now, // o null si no aplica
+    created_at: now,
+    updated_at: now,
+    category: newProduct.category
+  };
+
+    // Envía a la API correcta según la categoría
+    if (newProduct.category === "uniform") {
+      await api.products.create(productData);
+    } else {
+      await api.products.create(productData);
+    }
+
+    setIsAddDialogOpen(false);
+    setNewProduct({
+      name: "",
+      category: "uniform",
+      stock_actual: 0,
+      stock_minimo: 10,
+    });
+    loadProducts();
+  } catch (error: any) {
+    console.error("Error adding product:", error);
+    alert(`Error al agregar producto: ${error.message}`);
   }
+}
 
   return (
     <div className="space-y-4 md:space-y-6 p-3 md:p-6">
@@ -291,18 +302,6 @@ export default function InventoryPage() {
                       }
                     />
                   </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="unit">Unidad</Label>
-                  <Input
-                    id="unit"
-                    value={newProduct.unit}
-                    onChange={(e) =>
-                      setNewProduct({ ...newProduct, unit: e.target.value })
-                    }
-                    placeholder="Ej: unidad, caja, frasco"
-                  />
                 </div>
               </div>
               <DialogFooter className="flex-col sm:flex-row gap-2">
@@ -455,9 +454,6 @@ export default function InventoryPage() {
                 <TableHead className="min-w-[100px] text-xs md:text-sm">
                   Categoría
                 </TableHead>
-                <TableHead className="min-w-[120px] text-xs md:text-sm">
-                  Unidad
-                </TableHead>
                 <TableHead className="text-right min-w-[90px] text-xs md:text-sm">
                   Stock
                 </TableHead>
@@ -499,9 +495,6 @@ export default function InventoryPage() {
                             ? "Uniforme"
                             : "Medicamento"}
                         </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs md:text-sm text-muted-foreground">
-                        {product.unit || "-"}
                       </TableCell>
                       <TableCell className="text-right font-semibold text-xs md:text-sm">
                         {product.stock_actual}
