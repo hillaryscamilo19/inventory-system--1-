@@ -1,9 +1,17 @@
 "use client";
+/**
+ * Este archivo define la página de Inventario del sistema.
+ * "use client" indica que este componente se ejecutará del lado del cliente
+ * en Next.js (Client Component).
+ */
 
 import { useState, useEffect } from "react";
+
+// Componentes UI reutilizables
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+// Selectores (categoría, status, etc.)
 import {
   Select,
   SelectContent,
@@ -11,6 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+// Tabla de productos
 import {
   Table,
   TableBody,
@@ -20,6 +30,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+
+// Íconos
 import {
   Search,
   Plus,
@@ -30,8 +42,11 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+
+// Hook personalizado para saber el usuario actual (rol, permisos)
 import { useAuth } from "@/lib/auth-context";
 
+// Ventana modal para agregar productos
 import {
   Dialog,
   DialogContent,
@@ -42,38 +57,66 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+// API cliente + tipo Product
 import { api, Product } from "@/lib/api-client";
 
 export default function InventoryPage() {
+  /**
+   * USER: información del usuario logueado
+   * se usa para determinar si puede agregar productos
+   */
   const { user } = useAuth();
+  /**
+   * Estados principales del inventario:
+   * uniformes → lista filtrada por categoría "uniform"
+   * medicamentos → lista filtrada por categoría "medication"
+   * filteredProducts → lista final luego de aplicar filtros
+   */
   const [uniformes, setUniformes] = useState<Product[]>([]);
   const [medicamentos, setMedicamentos] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  // Filtros y búsqueda
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState("all");
+  // Estado de carga general
   const [loading, setLoading] = useState(true);
+  // Controla si el modal de agregar está abierto
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+
+  // Paginación
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  /**
+   * Objeto usado para almacenar temporalmente los valores
+   * del formulario para agregar un producto nuevo
+   */
   const [newProduct, setNewProduct] = useState({
     name: "",
     category: "uniform" as "uniform" | "medication",
     stock_actual: 0,
     stock_minimo: 10,
-
-  
   });
+
+  // ============================================================
+  // 1. CARGA INICIAL DE PRODUCTOS DESDE LA API
+  // ============================================================
 
   useEffect(() => {
     loadProducts();
   }, []);
 
+  // ============================================================
+  // 2. EJECUTAR FILTROS CADA VEZ QUE CAMBIAN DATOS O FILTROS
+  // ============================================================
   useEffect(() => {
     filterProducts();
     setCurrentPage(1);
   }, [uniformes, medicamentos, searchTerm, categoryFilter, stockFilter]);
 
+  // ============================================================
+  // FUNCIÓN PARA CARGAR PRODUCTOS DESDE LA API
+  // ============================================================
   async function loadProducts() {
     try {
       const products = await api.products.getAll();
@@ -92,24 +135,27 @@ export default function InventoryPage() {
     }
   }
 
+  // ============================================================
+  // FUNCIÓN PARA APLICAR FILTROS (BUSCAR, CATEGORÍA, STOCK)
+  // ============================================================
+
   function filterProducts() {
     let allProducts = [...uniformes, ...medicamentos];
-
-    // Search filter
+    // Filtro por búsqueda (nombre)
     if (searchTerm) {
       allProducts = allProducts.filter((p) =>
         p.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    // Category filter
+    // Filtro por categoría
     if (categoryFilter === "uniform") {
       allProducts = uniformes;
     } else if (categoryFilter === "medication") {
       allProducts = medicamentos;
     }
 
-    // Stock level filter
+    // Filtro por estado de stock
     if (stockFilter === "low") {
       allProducts = allProducts.filter(
         (p) => p.stock_actual <= p.stock_minimo && p.stock_actual > 0
@@ -120,7 +166,9 @@ export default function InventoryPage() {
 
     setFilteredProducts(allProducts);
   }
-
+  // ============================================================
+  // DETERMINAR EL ESTADO VISUAL DEL STOCK (OK / BAJO / SIN STOCK)
+  // ============================================================
   function getStockStatus(product: Product) {
     if (product.stock_actual === 0) {
       return {
@@ -142,12 +190,18 @@ export default function InventoryPage() {
       };
     }
   }
-
+  // ================================================================
+  // PAGINACIÓN: calcula página actual
+  // =================================================================
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentProducts = filteredProducts.slice(startIndex, endIndex);
 
+
+  // ============================================================
+  // ESTADÍSTICAS GENERALES DEL INVENTARIO
+  // ============================================================
   const allProducts = [...uniformes, ...medicamentos];
   const stats = {
     total: allProducts.length,
@@ -159,6 +213,9 @@ export default function InventoryPage() {
     medications: medicamentos.length,
   };
 
+  // ============================================================
+  // SI ESTÁ CARGANDO MOSTRAR MENSAJE
+  // ============================================================
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -166,51 +223,59 @@ export default function InventoryPage() {
       </div>
     );
   }
+  // ============================================================
+  // FUNCIÓN PARA AGREGAR UN NUEVO PRODUCTO DESDE EL MODAL
+  // ============================================================
+  async function handleAddProduct() {
+    try {
+            // Validación básica
+      if (!newProduct.name) {
+        alert("El nombre del producto es requerido");
+        return;
+      }
 
-async function handleAddProduct() {
-  try {
-    if (!newProduct.name) {
-      alert("El nombre del producto es requerido");
-      return;
+      const now = new Date().toISOString();
+      // Datos que se enviarán al backend
+      const productData = {
+        name: newProduct.name,
+        stock_actual: newProduct.stock_actual || 0,
+        stock_minimo: newProduct.stock_minimo || 0,
+        estado: true,
+        fecha_ingreso: now,
+        fecha_vencimiento: now, // o null si no aplica
+        created_at: now,
+        updated_at: now,
+        category: newProduct.category,
+      };
+
+      // Envía a la API correcta según la categoría
+      if (newProduct.category === "uniform") {
+        await api.products.create(productData);
+      } else {
+        await api.products.create(productData);
+      }
+      // Cerrar modal y limpiar campos
+      setIsAddDialogOpen(false);
+      setNewProduct({
+        name: "",
+        category: "uniform",
+        stock_actual: 0,
+        stock_minimo: 10,
+      });
+        // Recargar productos
+      loadProducts();
+    } catch (error: any) {
+      console.error("Error adding product:", error);
+      alert(`Error al agregar producto: ${error.message}`);
     }
-
-    const now = new Date().toISOString();
-
-  const productData = {
-    name: newProduct.name,
-    stock_actual: newProduct.stock_actual || 0,
-    stock_minimo: newProduct.stock_minimo || 0,
-    estado: true,
-    fecha_ingreso: now,
-    fecha_vencimiento: now, // o null si no aplica
-    created_at: now,
-    updated_at: now,
-    category: newProduct.category
-  };
-
-    // Envía a la API correcta según la categoría
-    if (newProduct.category === "uniform") {
-      await api.products.create(productData);
-    } else {
-      await api.products.create(productData);
-    }
-
-    setIsAddDialogOpen(false);
-    setNewProduct({
-      name: "",
-      category: "uniform",
-      stock_actual: 0,
-      stock_minimo: 10,
-    });
-    loadProducts();
-  } catch (error: any) {
-    console.error("Error adding product:", error);
-    alert(`Error al agregar producto: ${error.message}`);
   }
-}
-
+  // =============================================================
+  // RENDER PRINCIPAL DE LA PÁGINA
+  // =============================================================
   return (
     <div className="space-y-4 md:space-y-6 p-3 md:p-6">
+
+      {/* Título + Botón Agregar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 md:gap-4">
         <div>
           <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">
@@ -220,6 +285,7 @@ async function handleAddProduct() {
             Gestión y control de uniformes y medicamentos
           </p>
         </div>
+        {/* El botón solo aparece para admin y delivery manager */}
         {(user?.role === "admin" || user?.role === "delivery_manager") && (
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
@@ -229,6 +295,7 @@ async function handleAddProduct() {
                 <span className="sm:hidden">Agregar</span>
               </Button>
             </DialogTrigger>
+            {/* CONTENIDO DEL MODAL */}
             <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Agregar Nuevo Producto</DialogTitle>
@@ -236,7 +303,9 @@ async function handleAddProduct() {
                   Ingresa los detalles del nuevo producto al inventario
                 </DialogDescription>
               </DialogHeader>
+              {/* FORMULARIO DEL MODAL */}
               <div className="grid gap-4 py-4">
+                {/* SELECT CATEGORÍA */}
                 <div className="grid gap-2">
                   <Label htmlFor="category">Categoría</Label>
                   <Select
@@ -254,7 +323,7 @@ async function handleAddProduct() {
                     </SelectContent>
                   </Select>
                 </div>
-
+                {/* INPUT NOMBRE */}
                 <div className="grid gap-2">
                   <Label htmlFor="name">Nombre del Producto</Label>
                   <Input
@@ -271,6 +340,7 @@ async function handleAddProduct() {
                   />
                 </div>
 
+                {/* STOCK ACTUAL / STOCK MÍNIMO */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="current_stock">Stock Actual</Label>

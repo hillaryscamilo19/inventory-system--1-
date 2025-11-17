@@ -1,9 +1,12 @@
 import type React from "react"
+//
 import type { Metadata } from "next"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
+//
 import { AuthProvider } from "@/lib/auth-context"
+//Estilo globales del css
 import "./globals.css"
 
 export const metadata: Metadata = {

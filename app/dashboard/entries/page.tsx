@@ -1,14 +1,24 @@
-"use client"
+"use client";
+// ⚠️ Indica que este componente debe ejecutarse en el cliente (Next.js Client Component).
+// Esto permite usar hooks como useState y useEffect, que no funcionan en componentes del servidor.
 
+// Hooks de React para manejar estado y efectos secundarios.
 import type React from "react"
-
+// Hooks de React para manejar estado y efectos secundarios.
 import { useState, useEffect } from "react"
+// Componentes de interfaz basados en Shadcn UI.
 import { Button } from "@/components/ui/button"
+// Componentes de interfaz basados en Shadcn UI.
 import { Input } from "@/components/ui/input"
+// Componentes de interfaz basados en Shadcn UI.
 import { Label } from "@/components/ui/label"
+// Componentes de interfaz basados en Shadcn UI.
 import { Textarea } from "@/components/ui/textarea"
+// Componentes de interfaz basados en Shadcn UI.
 import { Card } from "@/components/ui/card"
+// Componentes de interfaz basados en Shadcn UI.
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+// Componentes de interfaz basados en Shadcn UI.
 import {
   Dialog,
   DialogContent,
@@ -17,10 +27,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+// Componentes de interfaz basados en Shadcn UI.
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+// Iconos usados en las tarjetas de estadísticas.
 import { Plus, ArrowUpCircle } from "lucide-react"
+// Componente visual para mostrar carga mientras llegan los datos.
 import { useAuth } from "@/lib/auth-context"
 
+// ----------------------------------------------------------------------
+// MODELOS (Interfaces que describen cómo vienen los datos del backend)
+// ----------------------------------------------------------------------
+
+// Modelo de productos (Producto o Y Stock de Entrada)
 interface Product {
   id: number
   name: string

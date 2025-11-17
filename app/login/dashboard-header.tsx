@@ -1,13 +1,17 @@
 "use client"
+/**
+ * Este archivo define la página de Inventario del sistema.
+ * "use client" indica que este componente se ejecutará del lado del cliente
+ * en Next.js (Client Component).
+ */
 
+// Componente visual para mostrar carga mientras llegan los datos.
 import { useAuth } from "@/lib/auth-context"
-import { Bell } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 
 export function DashboardHeader() {
+  //Variable que retorna el usuario del backend.
   const { user } = useAuth()
-
+//Retorna el nombre del Usuario y el Bienvenido en el header Principal.
   return (
     <header className="sticky top-0 z-10 flex h-14 md:h-16 items-center justify-between border-b border-border bg-card px-4 md:px-6 lg:pl-6">
       <div className="lg:pl-0 pl-12">

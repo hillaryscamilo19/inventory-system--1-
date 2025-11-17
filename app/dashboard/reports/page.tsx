@@ -1,18 +1,46 @@
 "use client"
+/**
+ * Este archivo define la página de Inventario del sistema.
+ * "use client" indica que este componente se ejecutará del lado del cliente
+ * en Next.js (Client Component).
+ */
+
+
 
 import { useState, useEffect } from "react"
-
+// Componentes UI reutilizables
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { FileText, Download, Filter, TrendingUp, TrendingDown } from "lucide-react"
+
+// Selectores (categoría, status, etc.)
+import { Select, 
+        SelectContent, 
+        SelectItem, 
+        SelectTrigger, 
+        SelectValue }
+      from "@/components/ui/select"
+
+// Íconos
+import {FileText, 
+        Download, 
+        Filter, 
+        TrendingUp, 
+        TrendingDown } 
+        from "lucide-react"
+
+
+// API cliente + tipo Product
 import { api, Employee, getEmployeeFullName, Product } from "@/lib/api-client"
 
+
+// ---------------------------------------------------------------------------
+// Interfaces para tipar los datos recibidos desde el backend
+// ---------------------------------------------------------------------------
 interface ReportData {
   id: string
   number: string
@@ -32,9 +60,19 @@ interface ReportData {
 }
 
 export default function ReportsPage() {
+
+    /**
+   * Estados principales del ReportsPage:
+   * uniformes → lista filtrada por categoría "Product"
+   * medicamentos → lista filtrada por categoría "Employee"
+   * filteredProducts → lista final luego de aplicar filtros
+   */
   const [reportData, setReportData] = useState<ReportData[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
+
+
+
   const [loading, setLoading] = useState(false)
   const [filters, setFilters] = useState({
     startDate: "",

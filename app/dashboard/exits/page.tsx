@@ -1,4 +1,5 @@
 "use client"
+// Indica que este componente se ejecuta del lado del cliente dentro de Next.js
 
 import type React from "react"
 import { useState, useEffect } from "react"
@@ -18,6 +19,10 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, ArrowDownCircle } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+
+// ---------------------------------------------------------------------------
+// Interfaces para tipar los datos recibidos desde el backend
+// ---------------------------------------------------------------------------
 
 interface Product {
   id: number
@@ -44,18 +49,33 @@ interface Delivery {
   created_by: string
 }
 
+// ---------------------------------------------------------------------------
+// Componente principal: Página de salidas del inventario
+// ---------------------------------------------------------------------------
+
 export default function ExitsPage() {
+  // Obtiene el usuario autenticado mediante el contexto de autenticación
   const { user } = useAuth()
+
+  // Estados para almacenar productos, empleados y registros de salidas
   const [uniformes, setUniformes] = useState<Product[]>([])
   const [medicamentos, setMedicamentos] = useState<Product[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [uniformDeliveries, setUniformDeliveries] = useState<any[]>([])
   const [medicationDeliveries, setMedicationDeliveries] = useState<any[]>([])
+
+  // Controla si el modal de registro está abierto
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+
+  // Buscador (aunque no usado en este archivo)
   const [searchTerm, setSearchTerm] = useState("")
+
+  // Estado para controlar carga de formulario
   const [loading, setLoading] = useState(false)
+
+  // Datos del formulario para la salida de stock
   const [formData, setFormData] = useState({
-    product_type: "uniform",
+    product_type: "uniform", // Tipo por defecto
     product_id: "",
     empleado_id: "",
     cantidad: "",
@@ -65,16 +85,22 @@ export default function ExitsPage() {
     area: "",
   })
 
-
+  // -------------------------------------------------------------------------
+  // Cargar datos del backend al montar el componente
+  // -------------------------------------------------------------------------
   useEffect(() => {
     loadData()
   }, [])
 
+  // -------------------------------------------------------------------------
+  // Función principal para cargar productos, empleados y entregas
+  // -------------------------------------------------------------------------
   async function loadData() {
     const token = localStorage.getItem("token")
     if (!token) return
 
     try {
+      // Solicitudes paralelas para optimizar tiempo de carga
       const [uniformsRes, medicationsRes, employeesRes] = await Promise.all([
         fetch("http://10.0.0.15:8000/uniforme", {
           headers: { Authorization: `Bearer ${token}` },
@@ -87,28 +113,34 @@ export default function ExitsPage() {
         }),
       ])
 
+      // Cargar uniformes
       if (uniformsRes.ok) {
         const data = await uniformsRes.json()
         setUniformes(data)
       }
 
+      // Cargar medicamentos
       if (medicationsRes.ok) {
         const data = await medicationsRes.json()
         setMedicamentos(data)
       }
 
+      // Cargar empleados
       if (employeesRes.ok) {
         const data = await employeesRes.json()
         setEmployees(data)
       }
 
-      // Load deliveries
+      // Cargar salidas registradas
       await loadDeliveries(token)
     } catch (error) {
       console.error("Error loading data:", error)
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Cargar historial de salidas
+  // -------------------------------------------------------------------------
   async function loadDeliveries(token: string) {
     try {
       const [uniformDelRes, medDelRes] = await Promise.all([
@@ -120,11 +152,13 @@ export default function ExitsPage() {
         }),
       ])
 
+      // Guardar entregas de uniformes
       if (uniformDelRes.ok) {
         const data = await uniformDelRes.json()
         setUniformDeliveries(data)
       }
 
+      // Guardar entregas de medicamentos
       if (medDelRes.ok) {
         const data = await medDelRes.json()
         setMedicationDeliveries(data)
@@ -134,6 +168,9 @@ export default function ExitsPage() {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Manejar envío del formulario de salida
+  // -------------------------------------------------------------------------
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
@@ -146,25 +183,28 @@ export default function ExitsPage() {
     }
 
     try {
+      // Selecciona la URL correcta según el tipo de producto
       const endpoint =
         formData.product_type === "uniform"
           ? "http://10.0.0.15:8000/uniforme/entrega"
           : "http://10.0.0.15:8000/medicamento/entrega"
 
+      // Construir payload dinámico para uniforme o medicamento
       const payload: any = {
-        [`${formData.product_type === "uniform" ? "uniforme" : "medicamento"}_id`]: Number.parseInt(
-          formData.product_id,
-        ),
+        [`${formData.product_type === "uniform" ? "uniforme" : "medicamento"}_id`]:
+          Number.parseInt(formData.product_id),
         empleado_id: Number.parseInt(formData.empleado_id),
         cantidad: Number.parseInt(formData.cantidad),
         Area: employees.find((e) => e.id === Number.parseInt(formData.empleado_id))?.area || "",
         firma: formData.area,
       }
 
+      // Si es uniforme, agregar talla
       if (formData.product_type === "uniform") {
         payload.size = formData.size
       }
 
+      // Enviar solicitud POST al backend
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
@@ -179,7 +219,7 @@ export default function ExitsPage() {
         throw new Error(errorData.detail || "Error al registrar la salida")
       }
 
-      // Reset form
+      // Resetear formulario
       setFormData({
         product_type: "uniform",
         product_id: "",
@@ -190,6 +230,7 @@ export default function ExitsPage() {
         notes: "",
         area: "",
       })
+
       setIsDialogOpen(false)
       loadData()
 
@@ -202,14 +243,24 @@ export default function ExitsPage() {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Variables derivadas
+  // -------------------------------------------------------------------------
   const products = formData.product_type === "uniform" ? uniformes : medicamentos
   const selectedProduct = products.find((p) => p.id === Number.parseInt(formData.product_id))
+
+  // Unifica entregas y las ordena por fecha
   const allDeliveries = [...uniformDeliveries, ...medicationDeliveries].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   )
 
+  // -------------------------------------------------------------------------
+  // Renderizado del componente
+  // -------------------------------------------------------------------------
   return (
     <div className="space-y-4 md:space-y-6 p-4 md:p-6">
+
+      {/* Encabezado de la página */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Salidas de Stock</h1>
@@ -217,6 +268,8 @@ export default function ExitsPage() {
             Registro de entregas de uniformes y medicamentos
           </p>
         </div>
+
+        {/* Botón para abrir el formulario de registro */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button className="w-full sm:w-auto">
@@ -224,15 +277,23 @@ export default function ExitsPage() {
               Nueva Salida
             </Button>
           </DialogTrigger>
+
+          {/* Modal con formulario */}
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Registrar Salida de Stock</DialogTitle>
               <DialogDescription>Complete los datos de la entrega al empleado</DialogDescription>
             </DialogHeader>
+
+            {/* Formulario de salida */}
             <form onSubmit={handleSubmit} className="space-y-4">
+
+              {/* Campos organizados en grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                {/* Tipo de producto */}
                 <div className="md:col-span-2">
-                  <Label htmlFor="product_type">Tipo de Producto *</Label>
+                  <Label>Tipo de Producto *</Label>
                   <Select
                     value={formData.product_type}
                     onValueChange={(value) =>
@@ -249,8 +310,9 @@ export default function ExitsPage() {
                   </Select>
                 </div>
 
+                {/* Selección de producto */}
                 <div className="md:col-span-2">
-                  <Label htmlFor="product_id">Producto *</Label>
+                  <Label>Producto *</Label>
                   <Select
                     value={formData.product_id}
                     onValueChange={(value) => setFormData({ ...formData, product_id: value })}
@@ -267,6 +329,8 @@ export default function ExitsPage() {
                       ))}
                     </SelectContent>
                   </Select>
+
+                  {/* Mostrar stock disponible */}
                   {selectedProduct && (
                     <p className="text-sm text-muted-foreground mt-1">
                       Stock disponible: {selectedProduct.stock_actual} unidades
@@ -274,8 +338,9 @@ export default function ExitsPage() {
                   )}
                 </div>
 
+                {/* Selección de empleado */}
                 <div className="md:col-span-2">
-                  <Label htmlFor="employee_id">Empleado *</Label>
+                  <Label>Empleado *</Label>
                   <Select
                     value={formData.empleado_id}
                     onValueChange={(value) => setFormData({ ...formData, empleado_id: value })}
@@ -294,10 +359,10 @@ export default function ExitsPage() {
                   </Select>
                 </div>
 
+                {/* Cantidad */}
                 <div>
-                  <Label htmlFor="quantity">Cantidad *</Label>
+                  <Label>Cantidad *</Label>
                   <Input
-                    id="quantity"
                     type="number"
                     min="1"
                     value={formData.cantidad}
@@ -306,9 +371,10 @@ export default function ExitsPage() {
                   />
                 </div>
 
+                {/* Talla (solo uniformes) */}
                 {formData.product_type === "uniform" && (
                   <div>
-                    <Label htmlFor="size">Talla *</Label>
+                    <Label>Talla *</Label>
                     <Select value={formData.size} onValueChange={(value) => setFormData({ ...formData, size: value })}>
                       <SelectTrigger>
                         <SelectValue placeholder="Seleccione talla" />
@@ -325,10 +391,10 @@ export default function ExitsPage() {
                   </div>
                 )}
 
+                {/* Firma del empleado */}
                 <div className="md:col-span-2">
-                  <Label htmlFor="signature">Firma del Empleado *</Label>
+                  <Label>Firma del Empleado *</Label>
                   <Input
-                    id="signature"
                     value={formData.area}
                     onChange={(e) => setFormData({ ...formData, area: e.target.value })}
                     placeholder="Nombre completo del empleado"
@@ -337,6 +403,7 @@ export default function ExitsPage() {
                 </div>
               </div>
 
+              {/* Botones del formulario */}
               <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t">
                 <Button
                   type="button"
@@ -355,6 +422,7 @@ export default function ExitsPage() {
         </Dialog>
       </div>
 
+      {/* Tarjeta con total de salidas */}
       <Card className="p-4 md:p-6">
         <div className="flex items-center gap-3 md:gap-4">
           <div className="p-2 md:p-3 bg-orange-500/10 rounded-lg">
@@ -367,22 +435,26 @@ export default function ExitsPage() {
         </div>
       </Card>
 
+      {/* Tabla de historial */}
       <Card>
         <div className="p-3 md:p-4 border-b">
           <h2 className="text-base md:text-lg font-semibold">Historial de Salidas</h2>
         </div>
+
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[120px]">Cantidad</TableHead>
-                <TableHead className="min-w-[100px]">Área</TableHead>
-                <TableHead className="min-w-[80px]">Talla</TableHead>
-                <TableHead className="min-w-[100px]">Firma</TableHead>
-                <TableHead className="min-w-[120px]">Fecha</TableHead>
+                <TableHead>Cantidad</TableHead>
+                <TableHead>Área</TableHead>
+                <TableHead>Talla</TableHead>
+                <TableHead>Firma</TableHead>
+                <TableHead>Fecha</TableHead>
               </TableRow>
             </TableHeader>
+
             <TableBody>
+              {/* Si no hay salidas */}
               {allDeliveries.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
@@ -390,12 +462,13 @@ export default function ExitsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
+                /* Mostrar historial */
                 allDeliveries.map((delivery) => (
                   <TableRow key={delivery.id}>
-                    <TableCell className="text-sm md:text-base">{delivery.cantidad}</TableCell>
-                    <TableCell className="text-sm md:text-base">{delivery.Area}</TableCell>
-                    <TableCell className="text-sm md:text-base">{delivery.size || "-"}</TableCell>
-                    <TableCell className="text-sm md:text-base">{delivery.firma}</TableCell>
+                    <TableCell>{delivery.cantidad}</TableCell>
+                    <TableCell>{delivery.Area}</TableCell>
+                    <TableCell>{delivery.size || "-"}</TableCell>
+                    <TableCell>{delivery.firma}</TableCell>
                     <TableCell>{new Date(delivery.created_at).toLocaleDateString()}</TableCell>
                   </TableRow>
                 ))

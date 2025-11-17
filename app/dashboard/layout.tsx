@@ -1,27 +1,32 @@
 "use client"
+/**
+ * Este archivo define la página de Inventario del sistema.
+ * "use client" indica que este componente se ejecutará del lado del cliente
+ * en Next.js (Client Component).
+ */
 
 import type React from "react"
-
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
+// Componente visual para mostrar carga mientras llegan los datos..
 import { useAuth } from "@/lib/auth-context"
+//Componente  del Dashboard-nav para todas la rutas.
 import { DashboardNav } from "@/components/dashboard-nav"
+//Componente del Dashboard-header principal.
 import { DashboardHeader } from "@/app/login/dashboard-header"
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function DashboardLayout({children,}: {children: React.ReactNode}) {
   const { user, isLoading } = useAuth()
   const router = useRouter()
 
+  //Codicion de que si el usuario no esta logueado no te redirecciona ala ruta del Login.
   useEffect(() => {
     if (!isLoading && !user) {
       router.push("/login")
     }
   }, [user, isLoading, router])
 
+  //Si el usuario se esta logueado correctamente saldra un mensaje de Cargando.
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -33,10 +38,14 @@ export default function DashboardLayout({
     )
   }
 
+
+// si el usuario es contrario devuelve null
   if (!user) {
     return null
   }
 
+
+  //Retorna el panel de menu de navegacion y el header.
   return (
     <div className="flex h-screen">
       <DashboardNav />
