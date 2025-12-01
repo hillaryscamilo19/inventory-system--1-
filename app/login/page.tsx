@@ -1,32 +1,38 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { useAuth } from "@/lib/auth-context"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Package, AlertCircle } from "lucide-react"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useState } from "react";
+import { useAuth } from "@/lib/auth-context";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Package, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function LoginPage() {
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-  const { login, isLoading } = useAuth()
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const { login, isLoading } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
+    e.preventDefault();
+    setError("");
 
     try {
-      await login(username, password)
+      await login(username, password);
     } catch (err) {
-      setError("Credenciales inválidas. Por favor, intente nuevamente.")
+      setError("Credenciales inválidas. Por favor, intente nuevamente.");
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -37,8 +43,12 @@ export default function LoginPage() {
               <Package className="h-8 w-8 text-primary-foreground" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Sistema de Inventario</CardTitle>
-          <CardDescription>Ingrese sus credenciales para acceder al sistema</CardDescription>
+          <CardTitle className="text-2xl font-bold">
+            Sistema de Inventario
+          </CardTitle>
+          <CardDescription>
+            Ingrese sus credenciales para acceder al sistema
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -79,10 +89,8 @@ export default function LoginPage() {
               {isLoading ? "Iniciando sesión..." : "Iniciar sesión"}
             </Button>
           </form>
-
-
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

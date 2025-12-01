@@ -3,21 +3,27 @@
 // Esto permite usar hooks como useState y useEffect, que no funcionan en componentes del servidor.
 
 // Hooks de React para manejar estado y efectos secundarios.
-import type React from "react"
+import type React from "react";
 // Hooks de React para manejar estado y efectos secundarios.
-import { useState, useEffect } from "react"
+import { useState, useEffect } from "react";
 // Componentes de interfaz basados en Shadcn UI.
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 // Componentes de interfaz basados en Shadcn UI.
-import { Input } from "@/components/ui/input"
+import { Input } from "@/components/ui/input";
 // Componentes de interfaz basados en Shadcn UI.
-import { Label } from "@/components/ui/label"
+import { Label } from "@/components/ui/label";
 // Componentes de interfaz basados en Shadcn UI.
-import { Textarea } from "@/components/ui/textarea"
+import { Textarea } from "@/components/ui/textarea";
 // Componentes de interfaz basados en Shadcn UI.
-import { Card } from "@/components/ui/card"
+import { Card } from "@/components/ui/card";
 // Componentes de interfaz basados en Shadcn UI.
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 // Componentes de interfaz basados en Shadcn UI.
 import {
   Dialog,
@@ -26,13 +32,20 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 // Componentes de interfaz basados en Shadcn UI.
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 // Iconos usados en las tarjetas de estadísticas.
-import { Plus, ArrowUpCircle } from "lucide-react"
+import { Plus, ArrowUpCircle } from "lucide-react";
 // Componente visual para mostrar carga mientras llegan los datos.
-import { useAuth } from "@/lib/auth-context"
+import { useAuth } from "@/lib/auth-context";
 
 // ----------------------------------------------------------------------
 // MODELOS (Interfaces que describen cómo vienen los datos del backend)
@@ -40,30 +53,30 @@ import { useAuth } from "@/lib/auth-context"
 
 // Modelo de productos (Producto o Y Stock de Entrada)
 interface Product {
-  id: number
-  name: string
-  category: string
-  unit?: string
+  id: number;
+  name: string;
+  category: string;
+  unit?: string;
 }
 
 interface StockEntry {
-  id: number
-  product_type: string
-  product_name: string
-  quantity: number
-  supplier: string
-  entry_date: string
-  created_by: string
-  created_at: string
+  id: number;
+  product_type: string;
+  product_name: string;
+  quantity: number;
+  supplier: string;
+  entry_date: string;
+  created_by: string;
+  created_at: string;
 }
 
 export default function EntriesPage() {
-  const { user } = useAuth()
-  const [uniformes, setUniformes] = useState<Product[]>([])
-  const [medicamentos, setMedicamentos] = useState<Product[]>([])
-  const [entries, setEntries] = useState<StockEntry[]>([])
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const { user } = useAuth();
+  const [uniformes, setUniformes] = useState<Product[]>([]);
+  const [medicamentos, setMedicamentos] = useState<Product[]>([]);
+  const [entries, setEntries] = useState<StockEntry[]>([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     product_type: "uniform",
     product_id: "",
@@ -71,17 +84,18 @@ export default function EntriesPage() {
     supplier: "",
     entry_date: new Date().toISOString().split("T")[0],
     notes: "",
-  })
+  });
 
   useEffect(() => {
-    loadProducts()
-    loadEntries()
-  }, [])
+    loadProducts();
+    loadEntries();
+  }, []);
 
   async function loadProducts() {
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://10.0.0.15:8000"
-      const token = localStorage.getItem("token")
+      const API_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://10.0.0.15:8000";
+      const token = localStorage.getItem("token");
 
       const [uniformesData, medicamentosData] = await Promise.all([
         fetch(`${API_URL}/uniforme`, {
@@ -90,40 +104,46 @@ export default function EntriesPage() {
         fetch(`${API_URL}/medicamento`, {
           headers: { Authorization: `Bearer ${token}` },
         }).then((res) => res.json()),
-      ])
+      ]);
 
-      setUniformes(uniformesData.map((u: any) => ({ ...u, category: "uniform" })))
-      setMedicamentos(medicamentosData.map((m: any) => ({ ...m, category: "medication" })))
+      setUniformes(
+        uniformesData.map((u: any) => ({ ...u, category: "uniform" }))
+      );
+      setMedicamentos(
+        medicamentosData.map((m: any) => ({ ...m, category: "medication" }))
+      );
     } catch (error) {
-      console.error("Error loading products:", error)
+      console.error("Error loading products:", error);
     }
   }
 
   async function loadEntries() {
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://10.0.0.15:8000"
-      const token = localStorage.getItem("token")
+      const API_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://10.0.0.15:8000";
+      const token = localStorage.getItem("token");
 
       const response = await fetch(`${API_URL}/api/entries`, {
         headers: { Authorization: `Bearer ${token}` },
-      })
+      });
 
       if (response.ok) {
-        const data = await response.json()
-        setEntries(data)
+        const data = await response.json();
+        setEntries(data);
       }
     } catch (error) {
-      console.error("Error loading entries:", error)
+      console.error("Error loading entries:", error);
     }
   }
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    setLoading(true);
 
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://10.0.0.15:8000"
-      const token = localStorage.getItem("token")
+      const API_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://10.0.0.15:8000";
+      const token = localStorage.getItem("token");
 
       const response = await fetch(`${API_URL}/api/entries`, {
         method: "POST",
@@ -139,9 +159,9 @@ export default function EntriesPage() {
           entry_date: formData.entry_date,
           notes: formData.notes || null,
         }),
-      })
+      });
 
-      if (!response.ok) throw new Error("Error al registrar entrada")
+      if (!response.ok) throw new Error("Error al registrar entrada");
 
       // Reset form and reload data
       setFormData({
@@ -151,29 +171,34 @@ export default function EntriesPage() {
         supplier: "",
         entry_date: new Date().toISOString().split("T")[0],
         notes: "",
-      })
-      setIsDialogOpen(false)
-      loadEntries()
-      loadProducts()
+      });
+      setIsDialogOpen(false);
+      loadEntries();
+      loadProducts();
 
-      alert("Entrada registrada exitosamente")
+      alert("Entrada registrada exitosamente");
     } catch (error) {
-      console.error("Error creating entry:", error)
-      alert("Error al registrar la entrada")
+      console.error("Error creating entry:", error);
+      alert("Error al registrar la entrada");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
-  const allProducts = formData.product_type === "uniform" ? uniformes : medicamentos
+  const allProducts =
+    formData.product_type === "uniform" ? uniformes : medicamentos;
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Entradas de Stock</h1>
-          <p className="text-muted-foreground mt-1">Registro de compras e ingresos al inventario</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Entradas de Stock
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Registro de compras e ingresos al inventario
+          </p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
@@ -185,7 +210,9 @@ export default function EntriesPage() {
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Registrar Entrada de Stock</DialogTitle>
-              <DialogDescription>Complete los datos de la entrada al inventario</DialogDescription>
+              <DialogDescription>
+                Complete los datos de la entrada al inventario
+              </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -193,7 +220,13 @@ export default function EntriesPage() {
                   <Label htmlFor="product_type">Tipo de Producto *</Label>
                   <Select
                     value={formData.product_type}
-                    onValueChange={(value) => setFormData({ ...formData, product_type: value, product_id: "" })}
+                    onValueChange={(value) =>
+                      setFormData({
+                        ...formData,
+                        product_type: value,
+                        product_id: "",
+                      })
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -209,7 +242,9 @@ export default function EntriesPage() {
                   <Label htmlFor="product_id">Producto *</Label>
                   <Select
                     value={formData.product_id}
-                    onValueChange={(value) => setFormData({ ...formData, product_id: value })}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, product_id: value })
+                    }
                     required
                   >
                     <SelectTrigger>
@@ -217,7 +252,10 @@ export default function EntriesPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {allProducts.map((product) => (
-                        <SelectItem key={product.id} value={product.id.toString()}>
+                        <SelectItem
+                          key={product.id}
+                          value={product.id.toString()}
+                        >
                           {product.name}
                         </SelectItem>
                       ))}
@@ -232,7 +270,9 @@ export default function EntriesPage() {
                     type="number"
                     min="1"
                     value={formData.quantity}
-                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, quantity: e.target.value })
+                    }
                     required
                   />
                 </div>
@@ -242,7 +282,9 @@ export default function EntriesPage() {
                   <Input
                     id="supplier"
                     value={formData.supplier}
-                    onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, supplier: e.target.value })
+                    }
                     required
                   />
                 </div>
@@ -253,7 +295,9 @@ export default function EntriesPage() {
                     id="entry_date"
                     type="date"
                     value={formData.entry_date}
-                    onChange={(e) => setFormData({ ...formData, entry_date: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, entry_date: e.target.value })
+                    }
                     required
                   />
                 </div>
@@ -263,14 +307,20 @@ export default function EntriesPage() {
                   <Textarea
                     id="notes"
                     value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, notes: e.target.value })
+                    }
                     rows={3}
                   />
                 </div>
               </div>
 
               <div className="flex justify-end gap-3">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsDialogOpen(false)}
+                >
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={loading}>
@@ -314,19 +364,32 @@ export default function EntriesPage() {
           <TableBody>
             {entries.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={6}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   No hay entradas registradas
                 </TableCell>
               </TableRow>
             ) : (
               entries.map((entry) => (
                 <TableRow key={entry.id}>
-                  <TableCell className="font-medium">{entry.product_name}</TableCell>
-                  <TableCell>{entry.product_type === "uniform" ? "Uniforme" : "Medicamento"}</TableCell>
+                  <TableCell className="font-medium">
+                    {entry.product_name}
+                  </TableCell>
+                  <TableCell>
+                    {entry.product_type === "uniform"
+                      ? "Uniforme"
+                      : "Medicamento"}
+                  </TableCell>
                   <TableCell>{entry.quantity}</TableCell>
                   <TableCell>{entry.supplier}</TableCell>
-                  <TableCell>{new Date(entry.entry_date).toLocaleDateString()}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{entry.created_by}</TableCell>
+                  <TableCell>
+                    {new Date(entry.entry_date).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {entry.created_by}
+                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -334,5 +397,5 @@ export default function EntriesPage() {
         </Table>
       </Card>
     </div>
-  )
+  );
 }

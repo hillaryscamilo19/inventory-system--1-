@@ -124,6 +124,7 @@ export interface StockExit {
 
 //
 export interface DashboardStats {
+  [x: string]: ReactNode;
   total_stock: number;
   entries_this_month: number;
   exits_this_month: number;

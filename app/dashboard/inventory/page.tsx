@@ -198,7 +198,6 @@ export default function InventoryPage() {
   const endIndex = startIndex + itemsPerPage;
   const currentProducts = filteredProducts.slice(startIndex, endIndex);
 
-
   // ============================================================
   // ESTADÍSTICAS GENERALES DEL INVENTARIO
   // ============================================================
@@ -228,7 +227,7 @@ export default function InventoryPage() {
   // ============================================================
   async function handleAddProduct() {
     try {
-            // Validación básica
+      // Validación básica
       if (!newProduct.name) {
         alert("El nombre del producto es requerido");
         return;
@@ -262,7 +261,7 @@ export default function InventoryPage() {
         stock_actual: 0,
         stock_minimo: 10,
       });
-        // Recargar productos
+      // Recargar productos
       loadProducts();
     } catch (error: any) {
       console.error("Error adding product:", error);
@@ -274,7 +273,6 @@ export default function InventoryPage() {
   // =============================================================
   return (
     <div className="space-y-4 md:space-y-6 p-3 md:p-6">
-
       {/* Título + Botón Agregar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 md:gap-4">
         <div>

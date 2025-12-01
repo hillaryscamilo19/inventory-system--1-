@@ -1,13 +1,19 @@
-"use client"
+"use client";
 // Indica que este componente se ejecuta del lado del cliente dentro de Next.js
 
-import type React from "react"
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import type React from "react";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -15,38 +21,45 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, ArrowDownCircle } from "lucide-react"
-import { useAuth } from "@/lib/auth-context"
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Plus, ArrowDownCircle } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 // ---------------------------------------------------------------------------
 // Interfaces para tipar los datos recibidos desde el backend
 // ---------------------------------------------------------------------------
 
 interface Product {
-  id: number
-  name: string
-  stock_actual: number
-  stock_minimo: number
+  id: number;
+  name: string;
+  stock_actual: number;
+  stock_minimo: number;
 }
 
 interface Employee {
-  id: number
-  CodigoEmpleado: string
-  nombre: string
-  apellido: string
-  cargo: string
-  area: string
+  id: number;
+  CodigoEmpleado: string;
+  nombre: string;
+  apellido: string;
+  cargo: string;
+  area: string;
 }
 
 interface Delivery {
-  id: number
-  cantidad: number
-  area: string
-  size?: string
-  firma: string
-  created_by: string
+  id: number;
+  cantidad: number;
+  area: string;
+  size?: string;
+  firma: string;
+  created_by: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -55,23 +68,23 @@ interface Delivery {
 
 export default function ExitsPage() {
   // Obtiene el usuario autenticado mediante el contexto de autenticación
-  const { user } = useAuth()
+  const { user } = useAuth();
 
   // Estados para almacenar productos, empleados y registros de salidas
-  const [uniformes, setUniformes] = useState<Product[]>([])
-  const [medicamentos, setMedicamentos] = useState<Product[]>([])
-  const [employees, setEmployees] = useState<Employee[]>([])
-  const [uniformDeliveries, setUniformDeliveries] = useState<any[]>([])
-  const [medicationDeliveries, setMedicationDeliveries] = useState<any[]>([])
+  const [uniformes, setUniformes] = useState<Product[]>([]);
+  const [medicamentos, setMedicamentos] = useState<Product[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [uniformDeliveries, setUniformDeliveries] = useState<any[]>([]);
+  const [medicationDeliveries, setMedicationDeliveries] = useState<any[]>([]);
 
   // Controla si el modal de registro está abierto
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // Buscador (aunque no usado en este archivo)
-  const [searchTerm, setSearchTerm] = useState("")
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Estado para controlar carga de formulario
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false);
 
   // Datos del formulario para la salida de stock
   const [formData, setFormData] = useState({
@@ -83,21 +96,21 @@ export default function ExitsPage() {
     exit_date: new Date().toISOString().split("T")[0],
     notes: "",
     area: "",
-  })
+  });
 
   // -------------------------------------------------------------------------
   // Cargar datos del backend al montar el componente
   // -------------------------------------------------------------------------
   useEffect(() => {
-    loadData()
-  }, [])
+    loadData();
+  }, []);
 
   // -------------------------------------------------------------------------
   // Función principal para cargar productos, empleados y entregas
   // -------------------------------------------------------------------------
   async function loadData() {
-    const token = localStorage.getItem("token")
-    if (!token) return
+    const token = localStorage.getItem("token");
+    if (!token) return;
 
     try {
       // Solicitudes paralelas para optimizar tiempo de carga
@@ -111,30 +124,30 @@ export default function ExitsPage() {
         fetch("http://10.0.0.15:8000/api/empleado/", {
           headers: { Authorization: `Bearer ${token}` },
         }),
-      ])
+      ]);
 
       // Cargar uniformes
       if (uniformsRes.ok) {
-        const data = await uniformsRes.json()
-        setUniformes(data)
+        const data = await uniformsRes.json();
+        setUniformes(data);
       }
 
       // Cargar medicamentos
       if (medicationsRes.ok) {
-        const data = await medicationsRes.json()
-        setMedicamentos(data)
+        const data = await medicationsRes.json();
+        setMedicamentos(data);
       }
 
       // Cargar empleados
       if (employeesRes.ok) {
-        const data = await employeesRes.json()
-        setEmployees(data)
+        const data = await employeesRes.json();
+        setEmployees(data);
       }
 
       // Cargar salidas registradas
-      await loadDeliveries(token)
+      await loadDeliveries(token);
     } catch (error) {
-      console.error("Error loading data:", error)
+      console.error("Error loading data:", error);
     }
   }
 
@@ -150,21 +163,21 @@ export default function ExitsPage() {
         fetch("http://10.0.0.15:8000/medicamento/entrega", {
           headers: { Authorization: `Bearer ${token}` },
         }),
-      ])
+      ]);
 
       // Guardar entregas de uniformes
       if (uniformDelRes.ok) {
-        const data = await uniformDelRes.json()
-        setUniformDeliveries(data)
+        const data = await uniformDelRes.json();
+        setUniformDeliveries(data);
       }
 
       // Guardar entregas de medicamentos
       if (medDelRes.ok) {
-        const data = await medDelRes.json()
-        setMedicationDeliveries(data)
+        const data = await medDelRes.json();
+        setMedicationDeliveries(data);
       }
     } catch (error) {
-      console.error("Error loading deliveries:", error)
+      console.error("Error loading deliveries:", error);
     }
   }
 
@@ -172,14 +185,14 @@ export default function ExitsPage() {
   // Manejar envío del formulario de salida
   // -------------------------------------------------------------------------
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    setLoading(true);
 
-    const token = localStorage.getItem("token")
+    const token = localStorage.getItem("token");
     if (!token) {
-      alert("No está autenticado")
-      setLoading(false)
-      return
+      alert("No está autenticado");
+      setLoading(false);
+      return;
     }
 
     try {
@@ -187,21 +200,24 @@ export default function ExitsPage() {
       const endpoint =
         formData.product_type === "uniform"
           ? "http://10.0.0.15:8000/uniforme/entrega"
-          : "http://10.0.0.15:8000/medicamento/entrega"
+          : "http://10.0.0.15:8000/medicamento/entrega";
 
       // Construir payload dinámico para uniforme o medicamento
       const payload: any = {
-        [`${formData.product_type === "uniform" ? "uniforme" : "medicamento"}_id`]:
-          Number.parseInt(formData.product_id),
+        [`${
+          formData.product_type === "uniform" ? "uniforme" : "medicamento"
+        }_id`]: Number.parseInt(formData.product_id),
         empleado_id: Number.parseInt(formData.empleado_id),
         cantidad: Number.parseInt(formData.cantidad),
-        Area: employees.find((e) => e.id === Number.parseInt(formData.empleado_id))?.area || "",
+        Area:
+          employees.find((e) => e.id === Number.parseInt(formData.empleado_id))
+            ?.area || "",
         firma: formData.area,
-      }
+      };
 
       // Si es uniforme, agregar talla
       if (formData.product_type === "uniform") {
-        payload.size = formData.size
+        payload.size = formData.size;
       }
 
       // Enviar solicitud POST al backend
@@ -212,11 +228,11 @@ export default function ExitsPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
-      })
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.detail || "Error al registrar la salida")
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Error al registrar la salida");
       }
 
       // Resetear formulario
@@ -229,41 +245,46 @@ export default function ExitsPage() {
         exit_date: new Date().toISOString().split("T")[0],
         notes: "",
         area: "",
-      })
+      });
 
-      setIsDialogOpen(false)
-      loadData()
+      setIsDialogOpen(false);
+      loadData();
 
-      alert("Salida registrada exitosamente")
+      alert("Salida registrada exitosamente");
     } catch (error: any) {
-      console.error("Error creating exit:", error)
-      alert(error.message || "Error al registrar la salida")
+      console.error("Error creating exit:", error);
+      alert(error.message || "Error al registrar la salida");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   // -------------------------------------------------------------------------
   // Variables derivadas
   // -------------------------------------------------------------------------
-  const products = formData.product_type === "uniform" ? uniformes : medicamentos
-  const selectedProduct = products.find((p) => p.id === Number.parseInt(formData.product_id))
+  const products =
+    formData.product_type === "uniform" ? uniformes : medicamentos;
+  const selectedProduct = products.find(
+    (p) => p.id === Number.parseInt(formData.product_id)
+  );
 
   // Unifica entregas y las ordena por fecha
   const allDeliveries = [...uniformDeliveries, ...medicationDeliveries].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-  )
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
 
   // -------------------------------------------------------------------------
   // Renderizado del componente
   // -------------------------------------------------------------------------
   return (
     <div className="space-y-4 md:space-y-6 p-4 md:p-6">
-
       {/* Encabezado de la página */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Salidas de Stock</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+            Salidas de Stock
+          </h1>
           <p className="text-sm md:text-base text-muted-foreground mt-1">
             Registro de entregas de uniformes y medicamentos
           </p>
@@ -282,22 +303,27 @@ export default function ExitsPage() {
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Registrar Salida de Stock</DialogTitle>
-              <DialogDescription>Complete los datos de la entrega al empleado</DialogDescription>
+              <DialogDescription>
+                Complete los datos de la entrega al empleado
+              </DialogDescription>
             </DialogHeader>
 
             {/* Formulario de salida */}
             <form onSubmit={handleSubmit} className="space-y-4">
-
               {/* Campos organizados en grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
                 {/* Tipo de producto */}
                 <div className="md:col-span-2">
                   <Label>Tipo de Producto *</Label>
                   <Select
                     value={formData.product_type}
                     onValueChange={(value) =>
-                      setFormData({ ...formData, product_type: value, product_id: "", size: "" })
+                      setFormData({
+                        ...formData,
+                        product_type: value,
+                        product_id: "",
+                        size: "",
+                      })
                     }
                   >
                     <SelectTrigger>
@@ -315,7 +341,9 @@ export default function ExitsPage() {
                   <Label>Producto *</Label>
                   <Select
                     value={formData.product_id}
-                    onValueChange={(value) => setFormData({ ...formData, product_id: value })}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, product_id: value })
+                    }
                     required
                   >
                     <SelectTrigger>
@@ -323,7 +351,10 @@ export default function ExitsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {products.map((product) => (
-                        <SelectItem key={product.id} value={product.id.toString()}>
+                        <SelectItem
+                          key={product.id}
+                          value={product.id.toString()}
+                        >
                           {product.name} (Stock: {product.stock_actual})
                         </SelectItem>
                       ))}
@@ -343,7 +374,9 @@ export default function ExitsPage() {
                   <Label>Empleado *</Label>
                   <Select
                     value={formData.empleado_id}
-                    onValueChange={(value) => setFormData({ ...formData, empleado_id: value })}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, empleado_id: value })
+                    }
                     required
                   >
                     <SelectTrigger>
@@ -351,8 +384,12 @@ export default function ExitsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {employees.map((employee) => (
-                        <SelectItem key={employee.id} value={employee.id.toString()}>
-                          {employee.CodigoEmpleado} - {employee.nombre} ({employee.area})
+                        <SelectItem
+                          key={employee.id}
+                          value={employee.id.toString()}
+                        >
+                          {employee.CodigoEmpleado} - {employee.nombre} (
+                          {employee.area})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -366,7 +403,9 @@ export default function ExitsPage() {
                     type="number"
                     min="1"
                     value={formData.cantidad}
-                    onChange={(e) => setFormData({ ...formData, cantidad: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, cantidad: e.target.value })
+                    }
                     required
                   />
                 </div>
@@ -375,7 +414,12 @@ export default function ExitsPage() {
                 {formData.product_type === "uniform" && (
                   <div>
                     <Label>Talla *</Label>
-                    <Select value={formData.size} onValueChange={(value) => setFormData({ ...formData, size: value })}>
+                    <Select
+                      value={formData.size}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, size: value })
+                      }
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Seleccione talla" />
                       </SelectTrigger>
@@ -396,7 +440,9 @@ export default function ExitsPage() {
                   <Label>Firma del Empleado *</Label>
                   <Input
                     value={formData.area}
-                    onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, area: e.target.value })
+                    }
                     placeholder="Nombre completo del empleado"
                     required
                   />
@@ -413,7 +459,11 @@ export default function ExitsPage() {
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={loading} className="w-full sm:w-auto">
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full sm:w-auto"
+                >
                   {loading ? "Registrando..." : "Registrar Salida"}
                 </Button>
               </div>
@@ -429,8 +479,12 @@ export default function ExitsPage() {
             <ArrowDownCircle className="h-6 w-6 md:h-8 md:w-8 text-orange-500" />
           </div>
           <div>
-            <p className="text-xs md:text-sm text-muted-foreground">Total de Salidas</p>
-            <p className="text-2xl md:text-3xl font-bold">{allDeliveries.length}</p>
+            <p className="text-xs md:text-sm text-muted-foreground">
+              Total de Salidas
+            </p>
+            <p className="text-2xl md:text-3xl font-bold">
+              {allDeliveries.length}
+            </p>
           </div>
         </div>
       </Card>
@@ -438,7 +492,9 @@ export default function ExitsPage() {
       {/* Tabla de historial */}
       <Card>
         <div className="p-3 md:p-4 border-b">
-          <h2 className="text-base md:text-lg font-semibold">Historial de Salidas</h2>
+          <h2 className="text-base md:text-lg font-semibold">
+            Historial de Salidas
+          </h2>
         </div>
 
         <div className="overflow-x-auto">
@@ -457,7 +513,10 @@ export default function ExitsPage() {
               {/* Si no hay salidas */}
               {allDeliveries.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell
+                    colSpan={6}
+                    className="text-center py-8 text-muted-foreground"
+                  >
                     No hay salidas registradas
                   </TableCell>
                 </TableRow>
@@ -469,7 +528,9 @@ export default function ExitsPage() {
                     <TableCell>{delivery.Area}</TableCell>
                     <TableCell>{delivery.size || "-"}</TableCell>
                     <TableCell>{delivery.firma}</TableCell>
-                    <TableCell>{new Date(delivery.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      {new Date(delivery.created_at).toLocaleDateString()}
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -478,5 +539,5 @@ export default function ExitsPage() {
         </div>
       </Card>
     </div>
-  )
+  );
 }

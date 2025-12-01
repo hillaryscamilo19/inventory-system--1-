@@ -33,6 +33,23 @@ export default function DashboardPage() {
   // Guarda cualquier error ocurrido durante la petición al backend.
   const [error, setError] = useState<string | null>(null);
 
+  // Paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const [filteredProducts, setFilteredProducts] = useState<DashboardStats[]>(
+    []
+  );
+
+  // ================================================================
+  // PAGINACIÓN: calcula página actual
+  // =================================================================
+  const lowStockProducts = stats?.low_stock_products ?? [];
+  const totalPages = Math.ceil(lowStockProducts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentProducts = filteredProducts.slice(startIndex, endIndex);
+
   // -------------------------------------------------------------
   // useEffect: Obtiene las estadísticas cuando carga la página.
   // -------------------------------------------------------------
@@ -54,12 +71,14 @@ export default function DashboardPage() {
         // Si el componente sigue montado, guardamos los datos.
         if (mounted) setStats(data);
       })
+
       .catch((err) => {
         console.error("[v0] Dashboard: Error fetching stats:", err);
 
         // Solo guardamos el error si el componente sigue montado.
         if (mounted) setError(err.message);
       })
+
       .finally(() => {
         // Cuando termina la petición (éxito o error), quitamos el modo "loading".
         if (mounted) setIsLoading(false);
@@ -71,12 +90,12 @@ export default function DashboardPage() {
     };
   }, []); // Se ejecuta solo una vez al cargar el componente.
 
-  // -------------------------------------------------------------
-  // PANTALLA DE CARGA (LOADING)
-  // -------------------------------------------------------------
+  // ------------------------------------------------------------------
+  // PANTALLA DE CARGA (LOADING).
+  // ------------------------------------------------------------------
   // Mientras isLoading está en true, se muestran componentes Skeleton.
   // Esto da la sensación de que la página está cargando datos.
-  // -------------------------------------------------------------
+  // ------------------------------------------------------------------
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -151,7 +170,7 @@ export default function DashboardPage() {
   // - valor numérico
   // - ícono
   // - tendencia (sube o baja)
-  // -------------------------------------------------------------
+  // ---------------------------------------------------------------
   const statCards = [
     {
       title: "Total en Stock",
@@ -196,7 +215,8 @@ export default function DashboardPage() {
 
       {/* ---------------------------------------------------------
          TARJETAS DE ESTADÍSTICAS
-         --------------------------------------------------------- */}
+         ----------------------------------------------------------
+      */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat) => {
           const Icon = stat.icon;
@@ -232,7 +252,8 @@ export default function DashboardPage() {
 
       {/* ---------------------------------------------------------
          SECCIÓN: ACTIVIDAD RECIENTE
-         --------------------------------------------------------- */}
+         ----------------------------------------------------------
+      */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
@@ -273,7 +294,8 @@ export default function DashboardPage() {
 
         {/* ---------------------------------------------------------
            SECCIÓN: PRODUCTOS CON STOCK BAJO
-           --------------------------------------------------------- */}
+           ----------------------------------------------------------
+        */}
         <Card>
           <CardHeader>
             <CardTitle>Productos con Stock Bajo</CardTitle>
@@ -281,25 +303,42 @@ export default function DashboardPage() {
 
           <CardContent>
             <div className="space-y-4">
-              {(stats.low_stock_products?.length ?? 0) > 0 ? (
-                stats.low_stock_products!.map((product) => (
-                  <div
-                    key={product.id}
-                    className="flex items-center justify-between"
-                  >
-                    {/* Nombre del producto */}
+              {currentProducts.length > 0 ? (
+                currentProducts.lo.map((product) => (
+                  <div key={product.id} className="flex items-center justify-between">
                     <span className="text-sm">{product.name}</span>
-
-                    {/* Existencias vs mínimo permitido */}
                     <span className="text-sm font-medium text-destructive">
                       {product.current_stock} / {product.minimum_stock} unidades
                     </span>
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  No hay productos con stock bajo
-                </p>
+                <p className="text-sm text-muted-foreground">No hay productos con stock bajo</p>
+              )}
+
+              {/* Controles de paginado */}
+              {lowStockProducts.length > itemsPerPage && (
+                <div className="flex items-center justify-between pt-4">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 text-sm border rounded disabled:opacity-50"
+                  >
+                    ← Anterior
+                  </button>
+
+                  <span className="text-sm text-muted-foreground">
+                    Página {currentPage} de {totalPages}
+                  </span>
+
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 text-sm border rounded disabled:opacity-50"
+                  >
+                    Siguiente →
+                  </button>
+                </div>
               )}
             </div>
           </CardContent>
