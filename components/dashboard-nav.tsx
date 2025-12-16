@@ -39,7 +39,7 @@ const navigation = [
   },
   {
     name: "Salidas",
-    href: "",
+    href: "/dashboard/exits",
     icon: ArrowDownCircle,
     roles: ["admin", "delivery_manager"],
   },
