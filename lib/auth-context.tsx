@@ -34,10 +34,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .then((userData) => {
           setUser(userData);
         })
-        .catch(() => {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-        })
+.catch((err) => {
+  console.error("❌ getCurrentUser failed:", err);
+  // NO borres el token aquí
+})
+
         .finally(() => {
           setIsLoading(false);
         });
@@ -46,23 +47,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = async (username: string, password: string) => {
-    setIsLoading(true);
-    try {
-      const response = await api.auth.login(username, password);
+const login = async (username: string, password: string) => {
+  setIsLoading(true);
+  try {
+    const response = await api.auth.login(username, password);
 
-      localStorage.setItem("token", response.access_token);
-      localStorage.setItem("user", JSON.stringify(response.user));
-      setUser(response.user);
-      router.push("/dashboard");
-    } catch (error) {
-      throw new Error(
-        error instanceof Error ? error.message : "Error al iniciar sesión"
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    // Guarda SOLO el token
+    localStorage.setItem("token", response.access_token);
+
+    // 🔥 OBTÉN EL USUARIO REAL
+    const userData = await api.auth.getCurrentUser();
+
+    localStorage.setItem("user", JSON.stringify(userData));
+    setUser(userData);
+
+    router.push("/dashboard");
+  } catch (error) {
+    throw new Error(
+      error instanceof Error ? error.message : "Error al iniciar sesión"
+    );
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   const logout = () => {
     localStorage.removeItem("token");

@@ -73,8 +73,12 @@ export default function DashboardPage() {
 
         <Card>
           <CardContent className="pt-6">
-            <p className="text-destructive font-semibold">Error al cargar datos</p>
-            <p className="text-sm text-muted-foreground">{error || "Datos no disponibles"}</p>
+            <p className="text-destructive font-semibold">
+              Error al cargar datos
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {error || "Datos no disponibles"}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -133,7 +137,9 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stat.value}</div>
-                <p className={`text-xs ${stat.trendUp ? "text-green-600" : "text-red-600"}`}>
+                <p
+                  className={`text-xs ${stat.trendUp ? "text-green-600" : "text-red-600"}`}
+                >
                   {stat.trend} desde el mes pasado
                 </p>
               </CardContent>
@@ -155,15 +161,21 @@ export default function DashboardPage() {
                   <div key={activity.id} className="flex items-center gap-4">
                     <div className="h-2 w-2 rounded-full bg-primary" />
                     <div className="flex-1">
-                      <p className="text-sm font-medium">{activity.description}</p>
+                      <p className="text-sm font-medium">
+                        {activity.description}
+                      </p>
                       <p className="text-xs text-muted-foreground">
-                        {activity.date ? new Date(activity.date).toLocaleString("es-ES") : "Fecha no disponible"}
+                        {activity.date
+                          ? new Date(activity.date).toLocaleString("es-ES")
+                          : "Fecha no disponible"}
                       </p>
                     </div>
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">No hay actividad reciente</p>
+                <p className="text-sm text-muted-foreground">
+                  No hay actividad reciente
+                </p>
               )}
             </div>
           </CardContent>
@@ -179,7 +191,10 @@ export default function DashboardPage() {
             <div className="space-y-4">
               {currentProducts.length > 0 ? (
                 currentProducts.map((product) => (
-                  <div key={product.id} className="flex items-center justify-between">
+                  <div
+                    key={product.id}
+                    className="flex items-center justify-between"
+                  >
                     <span className="text-sm">{product.name}</span>
                     <span className="text-sm font-medium text-destructive">
                       {product.current_stock} / {product.minimum_stock} unidades
@@ -187,7 +202,9 @@ export default function DashboardPage() {
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">No hay productos con stock bajo</p>
+                <p className="text-sm text-muted-foreground">
+                  No hay productos con stock bajo
+                </p>
               )}
 
               {/* Controles de paginado */}
@@ -206,7 +223,9 @@ export default function DashboardPage() {
                   </span>
 
                   <button
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(totalPages, p + 1))
+                    }
                     disabled={currentPage === totalPages}
                     className="px-3 py-1 text-sm border rounded disabled:opacity-50"
                   >

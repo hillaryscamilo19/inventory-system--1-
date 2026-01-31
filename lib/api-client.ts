@@ -1,3 +1,5 @@
+import { ReactNode } from "react";
+
 // Cliente API para conectar con FastAPI backend
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://10.0.0.15:8000";
 
@@ -129,21 +131,21 @@ export interface DashboardStats {
   entries_this_month: number;
   exits_this_month: number;
   low_stock_alerts: number;
-  recent_activity: Array<{
+   recent_activity: Array<{
     date: string | number | Date;
-    id: number;
-    type: "entry" | "exit";
-    description: string;
-    created_at: string;
-  }>;
+     id: number;
+     type: "entry" | "exit";
+     description: string;
+     created_at: string;
+   }>;
 
-  //
-  low_stock_products: Array<{
-    id: number;
-    name: string;
-    current_stock: number;
-    minimum_stock: number;
-  }>;
+  
+   low_stock_products: Array<{
+     id: number;
+     name: string;
+     current_stock: number;
+     minimum_stock: number;
+   }>;
 }
 
 // Helper to get full employee name
@@ -155,7 +157,7 @@ export function getEmployeeFullName(employee: Employee): string {
 export const api = {
   // Autenticación
   auth: {
-    login: (email: string, password: string) => {
+    login: async (email: string, password: string) => {
       // FastAPI OAuth2 espera form data, no JSON
       const formData = new URLSearchParams();
       formData.append("username", email);
@@ -169,11 +171,16 @@ export const api = {
         body: formData.toString(),
       }).then(async (response) => {
         if (!response.ok) {
+          alert('1231231')
+          
           const error = await response
             .json()
             .catch(() => ({ detail: "Error desconocido" }));
-          throw new Error(error.detail || `Error ${response.status}`);
+         
+            throw new Error(error.detail || `Error ${response.status}`);
         }
+
+        console.log( "OK");
         return response.json();
       });
     },
