@@ -1,84 +1,41 @@
 "use client"
-/**
- * Este archivo define la página de Inventario del sistema.
- * "use client" indica que este componente se ejecutará del lado del cliente
- * en Next.js (Client Component).
- */
-
-
 
 import { useState, useEffect } from "react"
-// Componentes UI reutilizables
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { FileText, Download, Filter, TrendingUp, TrendingDown } from "lucide-react"
+import { api, Product, Employee, getEmployeeFullName } from "@/lib/api-client"
 
-// Selectores (categoría, status, etc.)
-import { Select, 
-        SelectContent, 
-        SelectItem, 
-        SelectTrigger, 
-        SelectValue }
-      from "@/components/ui/select"
-
-// Íconos
-import {FileText, 
-        Download, 
-        Filter, 
-        TrendingUp, 
-        TrendingDown } 
-        from "lucide-react"
-
-
-// API cliente + tipo Product
-import { api, Employee, getEmployeeFullName, Product } from "@/lib/api-client"
-
-
-// ---------------------------------------------------------------------------
-// Interfaces para tipar los datos recibidos desde el backend
-// ---------------------------------------------------------------------------
 interface ReportData {
-  id: string
-  number: string
-  date: string
+  id: number
   type: "entry" | "exit"
   product_name: string
-  product_code: string
   category: string
   quantity: number
-  unit: string
   employee_name?: string
-  employee_code?: string
   area?: string
   supplier?: string
-  registered_by: string
-  notes?: string
+  date: string
+  size?: string
+  firma?: string
 }
 
 export default function ReportsPage() {
-
-    /**
-   * Estados principales del ReportsPage:
-   * uniformes → lista filtrada por categoría "Product"
-   * medicamentos → lista filtrada por categoría "Employee"
-   * filteredProducts → lista final luego de aplicar filtros
-   */
   const [reportData, setReportData] = useState<ReportData[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
-
-
-
   const [loading, setLoading] = useState(false)
   const [filters, setFilters] = useState({
     startDate: "",
     endDate: "",
-    productId: "all",
     employeeId: "all",
+    productId: "all",
     category: "all",
     type: "all",
   })
@@ -87,12 +44,6 @@ export default function ReportsPage() {
     loadProducts()
     loadEmployees()
   }, [])
-
-  useEffect(() => {
-    if (filters.startDate || filters.endDate) {
-      loadReportData()
-    }
-  }, [filters])
 
   async function loadProducts() {
     try {
@@ -112,151 +63,170 @@ export default function ReportsPage() {
     }
   }
 
+  async function exportExcel() {
+  try {
+    const blob = await api.reports.exportCSV({
+      start_date: filters.startDate || undefined,
+      end_date: filters.endDate || undefined,
+      employee_id: filters.employeeId !== "all" ? Number(filters.employeeId) : undefined,
+      product_type: filters.category  !== "all" ? filters.category : undefined,
+    })
+
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `reporte_${new Date().toISOString().split("T")[0]}.xlsx`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error("Error exportando Excel:", error)
+    alert("Error al exportar el reporte")
+  }
+}
+
+
   async function loadReportData() {
     setLoading(true)
     try {
-      const productType = filters.category === "all" ? "all" : filters.category === "uniform" ? "uniform" : "medication"
+      const [entries, uniformDel, medDel] = await Promise.all([
+        api.entries.getAll(),
+        api.uniforme.getDeliveries(),
+        api.medicamento.getDeliveries(),
+      ])
 
-      console.log("[v0] Fetching movements with filters:", {
-        start_date: filters.startDate || undefined,
-        end_date: filters.endDate || undefined,
-        employee_id: filters.employeeId !== "all" ? Number.parseInt(filters.employeeId) : undefined,
-        product_type: productType,
-      })
+      const allData: ReportData[] = []
 
-      const response = await api.reports.getMovements({
-        start_date: filters.startDate || undefined,
-        end_date: filters.endDate || undefined,
-        employee_id: filters.employeeId !== "all" ? Number.parseInt(filters.employeeId) : undefined,
-        product_type: productType,
-      })
-
-      console.log("[v0] API response:", response)
-      console.log("[v0] Response type:", typeof response, "Is array:", Array.isArray(response))
-
-      let data = response
-
-      // If the response is wrapped in an object, extract the array
-      if (response && typeof response === "object" && !Array.isArray(response)) {
-        console.log("[v0] Response is object, checking for array property...")
-        if ("movements" in response) {
-          data = response.movements
-        } else if ("data" in response) {
-          data = response.data
-        } else if ("results" in response) {
-          data = response.results
-        }
-      }
-
-      if (!Array.isArray(data)) {
-        console.error("[v0] Expected array but got:", typeof data, data)
-        setReportData([])
-        return
-      }
-
-      console.log("[v0] Processing", data.length, "movements")
-      if (data.length > 0) {
-        console.log("[v0] First movement item structure:", JSON.stringify(data[0], null, 2))
-      }
-
-      const transformedData: ReportData[] = data.map((item: any, index: number) => {
-        // Backend returns "uniform" or "medication" in the type field
-        const type: "entry" | "exit" = "exit" // All movements from backend are deliveries (exits)
-
-        const transformed = {
-          id: item.id?.toString() || `temp-${index}`,
-          number: "", // Backend doesn't provide this
-          date: item.date || item.created_at || "",
-          type: type,
-          product_name: item.product_name || "",
-          product_code: "", // Backend doesn't provide this
-          category: item.type || "", // "uniform" or "medication"
-          quantity: item.quantity || item.cantidad || 0,
-          unit: item.size || "", // Size for uniforms, empty for medications
-          employee_name: item.employee_name || "", // Backend provides this directly
-          employee_code: "", // Backend doesn't provide this
-          area: item.employee_area || "", // Employee's department
-          supplier: "", // Not applicable for deliveries
-          registered_by: "Sistema", // Backend doesn't track who registered, default to "Sistema"
-          notes: item.signature || item.firma || "", // Signature goes in notes
-        }
-
-        console.log("[v0] Transformed item:", transformed)
-        return transformed
-      })
-
-      // Apply client-side filters
-      let filteredData = transformedData
-
-      if (filters.type !== "all") {
-        console.log("[v0] Filtering by type:", filters.type)
-        filteredData = filteredData.filter((item) => item.type === filters.type)
-        console.log("[v0] After type filter:", filteredData.length, "items")
-      }
-
-      if (filters.productId !== "all") {
-        filteredData = filteredData.filter((item) => {
-          const product = products.find((p) => p.id.toString() === filters.productId)
-          return product && item.product_name === product.name
+      // Process entries
+      if (Array.isArray(entries)) {
+        entries.forEach((entry: any) => {
+          const entryDate = new Date(entry.entry_date)
+          if (
+            (!filters.startDate || entryDate >= new Date(filters.startDate)) &&
+            (!filters.endDate || entryDate <= new Date(filters.endDate)) &&
+            (filters.type === "all" || filters.type === "entry") &&
+            (filters.category === "all" || entry.product_type === filters.category) &&
+            (filters.productId === "all" || entry.product_name === products.find(p => p.id.toString() === filters.productId)?.name)
+          ) {
+            allData.push({
+              id: entry.id,
+              type: "entry",
+              product_name: entry.product_name,
+              category: entry.product_type,
+              quantity: entry.quantity,
+              supplier: entry.supplier,
+              date: entry.entry_date,
+            })
+          }
         })
       }
 
-      // Sort by date
-      filteredData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      // Process uniform deliveries
+      if (Array.isArray(uniformDel)) {
+        uniformDel.forEach((del: any) => {
+          const delDate = new Date(del.created_at)
+          const uniformName = del.uniforme_name || del.name || "Uniforme"
+          if (
+            (!filters.startDate || delDate >= new Date(filters.startDate)) &&
+            (!filters.endDate || delDate <= new Date(filters.endDate)) &&
+            (filters.type === "all" || filters.type === "exit") &&
+            (filters.category === "all" || filters.category === "uniform") &&
+            (filters.employeeId === "all" || del.empleado_id === Number.parseInt(filters.employeeId)) &&
+            (filters.productId === "all" || uniformName === products.find(p => p.id.toString() === filters.productId)?.name)
+          ) {
+            allData.push({
+              id: del.id,
+              type: "exit",
+              product_name: uniformName,
+              category: "uniform",
+              quantity: del.cantidad,
+              employee_name: del.empleado_name || "",
+              area: del.area || del.Area || "",
+              size: del.size || del.talla || "",
+              firma: del.firma || "",
+              date: del.created_at,
+            })
+          }
+        })
+      }
 
-      console.log("[v0] Final filtered data:", filteredData.length, "items")
-      setReportData(filteredData)
+      // Process medication deliveries
+      if (Array.isArray(medDel)) {
+        medDel.forEach((del: any) => {
+          const delDate = new Date(del.created_at)
+          const medName = del.medicamento_name || del.name || "Medicamento"
+          if (
+            (!filters.startDate || delDate >= new Date(filters.startDate)) &&
+            (!filters.endDate || delDate <= new Date(filters.endDate)) &&
+            (filters.type === "all" || filters.type === "exit") &&
+            (filters.category === "all" || filters.category === "medication") &&
+            (filters.employeeId === "all" || del.empleado_id === Number.parseInt(filters.employeeId)) &&
+            (filters.productId === "all" || medName === products.find(p => p.id.toString() === filters.productId)?.name)
+          ) {
+            allData.push({
+              id: del.id,
+              type: "exit",
+              product_name: medName,
+              category: "medication",
+              quantity: del.cantidad,
+              employee_name: del.empleado_name || "",
+              area: del.area || del.Area || "",
+              firma: del.firma || "",
+              date: del.created_at,
+            })
+          }
+        })
+      }
+
+      allData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      setReportData(allData)
     } catch (error) {
-      console.error("[v0] Error loading report data:", error)
-      setReportData([])
+      console.error("Error loading report data:", error)
     } finally {
       setLoading(false)
     }
   }
 
-async function exportToExcel() {
-  try {
-    const productType =
-      filters.category === "all"
-        ? "all"
-        : filters.category === "uniform"
-        ? "uniform"
-        : "medication"
+  //
 
-    const downloadUrl = api.reports.exportCSV({
-      start_date: filters.startDate || undefined,
-      end_date: filters.endDate || undefined,
-      employee_id:
-        filters.employeeId !== "all"
-          ? Number.parseInt(filters.employeeId)
-          : undefined,
-      product_type: productType,
-    })
+  function exportToCSV() {
+    if (reportData.length === 0) {
+      alert("No hay datos para exportar")
+      return
+    }
 
-    // Descargar el archivo realmente como blob
-    const response = await fetch(downloadUrl)
-    const blob = await response.blob()
+    const headers = ["ID", "Tipo", "Fecha", "Producto", "Categoria", "Cantidad", "Empleado", "Area", "Talla", "Proveedor", "Firma"]
 
-    console.log("[v0] Blob size:", blob.size)
+    const rows = reportData.map((item) => [
+      item.id,
+      item.type === "entry" ? "Entrada" : "Salida",
+      new Date(item.date).toLocaleDateString(),
+      item.product_name,
+      item.category === "uniform" ? "Uniforme" : "Medicamento",
+      item.quantity,
+      item.employee_name || "-",
+      item.area || "-",
+      item.size || "-",
+      item.supplier || "-",
+      item.firma ? "Si" : "No",
+    ])
 
-    const url = URL.createObjectURL(blob)
+    // Agregar BOM para que Excel reconozca UTF-8 correctamente
+    const BOM = "\uFEFF"
+    const csvContent = BOM + [headers, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(",")).join("\n")
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
     const link = document.createElement("a")
-    link.href = url
-    link.download = `reporte_movimientos_${new Date()
-      .toISOString()
-      .split("T")[0]}.xlsx`
+    const url = URL.createObjectURL(blob)
+    link.setAttribute("href", url)
+    link.setAttribute("download", `reporte_movimientos_${new Date().toISOString().split("T")[0]}.csv`)
+    link.style.visibility = "hidden"
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
-
-    console.log("[v0] Excel file downloaded successfully")
-  } catch (error) {
-    console.error("[v0] Error exporting to Excel:", error)
-    alert("Error al exportar el reporte. Por favor intente nuevamente.")
   }
-}
-
 
   const stats = {
     totalMovements: reportData.length,
@@ -266,59 +236,59 @@ async function exportToExcel() {
     totalQuantityOut: reportData.filter((r) => r.type === "exit").reduce((sum, r) => sum + r.quantity, 0),
   }
 
-  // Log stats when they change
-  useEffect(() => {
-    if (reportData.length > 0) {
-      console.log("[v0] Stats calculated:", stats)
-    }
-  }, [reportData])
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6 p-4 md:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Reportes y Auditoría</h1>
-          <p className="text-muted-foreground mt-1">Historial completo de movimientos de inventario</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Reportes y Auditoría</h1>
+          <p className="text-sm md:text-base text-muted-foreground mt-1">Historial completo de movimientos</p>
         </div>
-        <Button onClick={exportToExcel} disabled={reportData.length === 0}>
-          <Download className="h-4 w-4 mr-2" />
-          Exportar Excel
-        </Button>
+  <Button onClick={exportExcel} className="w-full sm:w-auto">
+  <Download className="h-4 w-4 mr-2" />
+  Exportar Excel
+</Button>
+
       </div>
 
-      {/* Filters */}
-      <Card className="p-6">
+      <Card className="p-4 md:p-6">
         <div className="flex items-center gap-2 mb-4">
-          <Filter className="h-5 w-5 text-muted-foreground" />
-          <h2 className="text-lg font-semibold">Filtros de Búsqueda</h2>
+          <Filter className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
+          <h2 className="text-base md:text-lg font-semibold">Filtros de Búsqueda</h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <Label htmlFor="startDate">Fecha Inicio</Label>
+            <Label htmlFor="startDate" className="text-sm">
+              Fecha Inicio
+            </Label>
             <Input
               id="startDate"
               type="date"
               value={filters.startDate}
               onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+              className="text-sm"
             />
           </div>
 
           <div>
-            <Label htmlFor="endDate">Fecha Fin</Label>
+            <Label htmlFor="endDate" className="text-sm">
+              Fecha Fin
+            </Label>
             <Input
               id="endDate"
               type="date"
               value={filters.endDate}
               onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+              className="text-sm"
             />
           </div>
 
           <div>
-            <Label htmlFor="type">Tipo de Movimiento</Label>
+            <Label htmlFor="type" className="text-sm">
+              Tipo de Movimiento
+            </Label>
             <Select value={filters.type} onValueChange={(value) => setFilters({ ...filters, type: value })}>
-              <SelectTrigger>
+              <SelectTrigger className="text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -330,9 +300,11 @@ async function exportToExcel() {
           </div>
 
           <div>
-            <Label htmlFor="category">Categoría</Label>
+            <Label htmlFor="category" className="text-sm">
+              Categoría
+            </Label>
             <Select value={filters.category} onValueChange={(value) => setFilters({ ...filters, category: value })}>
-              <SelectTrigger>
+              <SelectTrigger className="text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -344,9 +316,11 @@ async function exportToExcel() {
           </div>
 
           <div>
-            <Label htmlFor="productId">Producto</Label>
+            <Label htmlFor="productId" className="text-sm">
+              Producto
+            </Label>
             <Select value={filters.productId} onValueChange={(value) => setFilters({ ...filters, productId: value })}>
-              <SelectTrigger>
+              <SelectTrigger className="text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -361,9 +335,11 @@ async function exportToExcel() {
           </div>
 
           <div>
-            <Label htmlFor="employeeId">Empleado</Label>
+            <Label htmlFor="employeeId" className="text-sm">
+              Empleado
+            </Label>
             <Select value={filters.employeeId} onValueChange={(value) => setFilters({ ...filters, employeeId: value })}>
-              <SelectTrigger>
+              <SelectTrigger className="text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -378,253 +354,219 @@ async function exportToExcel() {
           </div>
         </div>
 
+
+
         <div className="flex justify-end mt-4">
-          <Button onClick={loadReportData} disabled={loading}>
+          <Button onClick={loadReportData} disabled={loading} className="w-full sm:w-auto">
             <FileText className="h-4 w-4 mr-2" />
             {loading ? "Generando..." : "Generar Reporte"}
           </Button>
         </div>
       </Card>
 
-      {/* Stats */}
       {reportData.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-5">
-          <Card className="p-4">
-            <div className="flex items-center gap-3">
+        <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-5">
+          <Card className="p-3 md:p-4">
+            <div className="flex items-center gap-2 md:gap-3">
               <div className="p-2 bg-primary/10 rounded-lg">
-                <FileText className="h-5 w-5 text-primary" />
+                <FileText className="h-4 w-4 md:h-5 md:w-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Movimientos</p>
-                <p className="text-2xl font-bold">{stats.totalMovements}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">Total</p>
+                <p className="text-xl md:text-2xl font-bold">{stats.totalMovements}</p>
               </div>
             </div>
           </Card>
 
-          <Card className="p-4">
-            <div className="flex items-center gap-3">
+          <Card className="p-3 md:p-4">
+            <div className="flex items-center gap-2 md:gap-3">
               <div className="p-2 bg-green-500/10 rounded-lg">
-                <TrendingUp className="h-5 w-5 text-green-500" />
+                <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-green-500" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Entradas</p>
-                <p className="text-2xl font-bold text-green-600">{stats.totalEntries}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">Entradas</p>
+                <p className="text-xl md:text-2xl font-bold text-green-600">{stats.totalEntries}</p>
               </div>
             </div>
           </Card>
 
-          <Card className="p-4">
-            <div className="flex items-center gap-3">
+          <Card className="p-3 md:p-4">
+            <div className="flex items-center gap-2 md:gap-3">
               <div className="p-2 bg-orange-500/10 rounded-lg">
-                <TrendingDown className="h-5 w-5 text-orange-500" />
+                <TrendingDown className="h-4 w-4 md:h-5 md:w-5 text-orange-500" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Salidas</p>
-                <p className="text-2xl font-bold text-orange-600">{stats.totalExits}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">Salidas</p>
+                <p className="text-xl md:text-2xl font-bold text-orange-600">{stats.totalExits}</p>
               </div>
             </div>
           </Card>
 
-          <Card className="p-4">
-            <div className="flex items-center gap-3">
+          <Card className="p-3 md:p-4">
+            <div className="flex items-center gap-2 md:gap-3">
               <div className="p-2 bg-blue-500/10 rounded-lg">
-                <TrendingUp className="h-5 w-5 text-blue-500" />
+                <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-blue-500" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Cantidad Ingresada</p>
-                <p className="text-2xl font-bold">{stats.totalQuantityIn}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">Cant. Ingresada</p>
+                <p className="text-xl md:text-2xl font-bold">{stats.totalQuantityIn}</p>
               </div>
             </div>
           </Card>
 
-          <Card className="p-4">
-            <div className="flex items-center gap-3">
+          <Card className="p-3 md:p-4">
+            <div className="flex items-center gap-2 md:gap-3">
               <div className="p-2 bg-purple-500/10 rounded-lg">
-                <TrendingDown className="h-5 w-5 text-purple-500" />
+                <TrendingDown className="h-4 w-4 md:h-5 md:w-5 text-purple-500" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Cantidad Entregada</p>
-                <p className="text-2xl font-bold">{stats.totalQuantityOut}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">Cant. Entregada</p>
+                <p className="text-xl md:text-2xl font-bold">{stats.totalQuantityOut}</p>
               </div>
             </div>
           </Card>
         </div>
       )}
 
-      {/* Report Table */}
       <Card>
         <Tabs defaultValue="all" className="w-full">
-          <div className="border-b px-4 pt-4">
-            <TabsList>
-              <TabsTrigger value="all">Todos los Movimientos</TabsTrigger>
-              <TabsTrigger value="entries">Entradas</TabsTrigger>
-              <TabsTrigger value="exits">Salidas</TabsTrigger>
+          <div className="border-b px-3 md:px-4 pt-3 md:pt-4">
+            <TabsList className="grid w-full grid-cols-3 max-w-md">
+              <TabsTrigger value="all" className="text-xs md:text-sm">
+                Todos
+              </TabsTrigger>
+              <TabsTrigger value="entries" className="text-xs md:text-sm">
+                Entradas
+              </TabsTrigger>
+              <TabsTrigger value="exits" className="text-xs md:text-sm">
+                Salidas
+              </TabsTrigger>
             </TabsList>
           </div>
 
           <TabsContent value="all" className="m-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Producto</TableHead>
-                  <TableHead>Cantidad</TableHead>
-                  <TableHead>Empleado/Proveedor</TableHead>
-                  <TableHead>Registrado por</TableHead>
-                  <TableHead>Talla</TableHead>
-                  <TableHead>Área Entrega</TableHead>
-                  <TableHead>Firma</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                      Cargando datos...
-                    </TableCell>
+                    <TableHead className="min-w-[60px]">ID</TableHead>
+                    <TableHead className="min-w-[80px]">Tipo</TableHead>
+                    <TableHead className="min-w-[100px]">Fecha</TableHead>
+                    <TableHead className="min-w-[120px]">Producto</TableHead>
+                    <TableHead className="min-w-[80px]">Cantidad</TableHead>
+                    <TableHead className="min-w-[100px]">Área/Proveedor</TableHead>
                   </TableRow>
-                ) : reportData.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                      Seleccione un rango de fechas y genere el reporte
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  reportData.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <Badge variant={item.type === "entry" ? "default" : "secondary"}>
-                          {item.type === "entry" ? "Entrada" : "Salida"}
-                        </Badge>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-sm">
+                        Cargando datos...
                       </TableCell>
-                      <TableCell>{new Date(item.date).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{item.product_name}</div>
-                          <div className="text-sm text-muted-foreground">{item.product_code}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {item.quantity} {item.unit}
-                      </TableCell>
-                      <TableCell>
-                        {item.type === "exit" ? (
-                          <div>
-                            <div className="font-medium">{item.employee_name}</div>
-                            <div className="text-sm text-muted-foreground">{item.area}</div>
-                          </div>
-                        ) : (
-                          <div className="text-sm">{item.supplier}</div>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{item.registered_by}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{item.unit || "N/A"}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{item.area || ""}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{item.notes || ""}</TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : reportData.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-sm">
+                        Seleccione un rango de fechas y genere el reporte
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    reportData.map((item) => (
+                      <TableRow key={`${item.type}-${item.id}`}>
+                        <TableCell className="font-mono text-xs md:text-sm">{item.id}</TableCell>
+                        <TableCell>
+                          <Badge variant={item.type === "entry" ? "default" : "secondary"} className="text-xs">
+                            {item.type === "entry" ? "Entrada" : "Salida"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs md:text-sm">{new Date(item.date).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-xs md:text-sm">{item.product_name}</TableCell>
+                        <TableCell className="text-xs md:text-sm">{item.quantity}</TableCell>
+                        <TableCell className="text-xs md:text-sm">{item.area || item.supplier || "-"}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </TabsContent>
 
           <TabsContent value="entries" className="m-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Producto</TableHead>
-                  <TableHead>Cantidad</TableHead>
-                  <TableHead>Proveedor</TableHead>
-                  <TableHead>Registrado por</TableHead>
-                  <TableHead>Talla</TableHead>
-                  <TableHead>Área Entrega</TableHead>
-                  <TableHead>Firma</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {reportData.filter((r) => r.type === "entry").length === 0 ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                      No hay entradas en el período seleccionado
-                    </TableCell>
+                    <TableHead className="min-w-[60px]">ID</TableHead>
+                    <TableHead className="min-w-[100px]">Fecha</TableHead>
+                    <TableHead className="min-w-[120px]">Producto</TableHead>
+                    <TableHead className="min-w-[80px]">Cantidad</TableHead>
+                    <TableHead className="min-w-[120px]">Proveedor</TableHead>
                   </TableRow>
-                ) : (
-                  reportData
-                    .filter((r) => r.type === "entry")
-                    .map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>{new Date(item.date).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{item.product_name}</div>
-                            <div className="text-sm text-muted-foreground">{item.product_code}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {item.quantity} {item.unit}
-                        </TableCell>
-                        <TableCell>{item.supplier}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{item.registered_by}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{item.unit || "N/A"}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{item.area || ""}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{item.notes || ""}</TableCell>
-                      </TableRow>
-                    ))
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {reportData.filter((r) => r.type === "entry").length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-sm">
+                        No hay entradas en el período seleccionado
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    reportData
+                      .filter((r) => r.type === "entry")
+                      .map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-mono text-xs md:text-sm">{item.id}</TableCell>
+                          <TableCell className="text-xs md:text-sm">
+                            {new Date(item.date).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell className="text-xs md:text-sm">{item.product_name}</TableCell>
+                          <TableCell className="text-xs md:text-sm">{item.quantity}</TableCell>
+                          <TableCell className="text-xs md:text-sm">{item.supplier}</TableCell>
+                        </TableRow>
+                      ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </TabsContent>
 
           <TabsContent value="exits" className="m-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Producto</TableHead>
-                  <TableHead>Cantidad</TableHead>
-                  <TableHead>Empleado</TableHead>
-                  <TableHead>Área Empleado</TableHead>
-                  <TableHead>Registrado por</TableHead>
-                  <TableHead>Talla</TableHead>
-                  <TableHead>Área Entrega</TableHead>
-                  <TableHead>Firma</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {reportData.filter((r) => r.type === "exit").length === 0 ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                      No hay salidas en el período seleccionado
-                    </TableCell>
+                    <TableHead className="min-w-[60px]">ID</TableHead>
+                    <TableHead className="min-w-[100px]">Fecha</TableHead>
+                    <TableHead className="min-w-[120px]">Producto</TableHead>
+                    <TableHead className="min-w-[80px]">Cantidad</TableHead>
+                    <TableHead className="min-w-[100px]">Área</TableHead>
                   </TableRow>
-                ) : (
-                  reportData
-                    .filter((r) => r.type === "exit")
-                    .map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>{new Date(item.date).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{item.product_name}</div>
-                            <div className="text-sm text-muted-foreground">{item.product_code}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {item.quantity} {item.unit}
-                        </TableCell>
-                        <TableCell className="font-medium">{item.employee_name}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{item.area}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{item.registered_by}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{item.unit || "N/A"}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{item.area || ""}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{item.notes || ""}</TableCell>
-                      </TableRow>
-                    ))
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {reportData.filter((r) => r.type === "exit").length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-sm">
+                        No hay salidas en el período seleccionado
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    reportData
+                      .filter((r) => r.type === "exit")
+                      .map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-mono text-xs md:text-sm">{item.id}</TableCell>
+                          <TableCell className="text-xs md:text-sm">
+                            {new Date(item.date).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell className="text-xs md:text-sm">{item.product_name}</TableCell>
+                          <TableCell className="text-xs md:text-sm">{item.quantity}</TableCell>
+                          <TableCell className="text-xs md:text-sm">{item.area}</TableCell>
+                        </TableRow>
+                      ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </TabsContent>
         </Tabs>
       </Card>

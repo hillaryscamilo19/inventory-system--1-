@@ -1,188 +1,154 @@
-import { ReactNode } from "react";
-
 // Cliente API para conectar con FastAPI backend
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://10.0.0.15:8000";
 
-//Esta interfaz modela el formato de error retornado por FastAPI cuando ocurre un error.
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://10.0.0.15:8000"
+
 interface ApiError {
-  detail: string;
+  detail: string
 }
-//Esta es la función core de todo el cliente.
-//Todos los módulos (productos, usuarios, reportes…) la usan para hacer peticiones.
-async function fetchAPI<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
-  //Verifica si está en ambiente navegador.
-  //Toma el token del login guardado.
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
-  //Combina la base y la ruta específica.
-  const fullUrl = `${API_URL}${endpoint}`;
-  console.log("[v0] API: Fetching", fullUrl);
+async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
 
-  //Aplica headers por defecto.
-  //Incluye el token solo si existe.
-  //Permite override de headers desde fuera.
-  const response = await fetch(fullUrl, {
+  const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
       ...(token && { Authorization: `Bearer ${token}` }),
       ...options.headers,
     },
-  });
+  })
 
   if (!response.ok) {
-    //FastAPI devuelve { detail: "..."}
-    //Si el JSON no existe → crea un error genérico
-    //Muestra logs en consola para depuración
-    const error: ApiError = await response
-      .json()
-      .catch(() => ({ detail: "Error desconocido" }));
-    console.error("[v0] API: Error response", response.status, error);
-    throw new Error(
-      error.detail || `Error ${response.status}: ${response.statusText}`
-    );
+    const error: ApiError = await response.json().catch(() => ({ detail: "Error desconocido" }))
+    throw new Error(error.detail || `Error ${response.status}: ${response.statusText}`)
   }
 
-  //Retorna los datos ya parseados.
-  const data = await response.json();
-  console.log("[v0] API: Response received", data);
-  return data;
+  return response.json()
 }
 
 // Tipos de datos
 export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: "admin" | "delivery_manager" | "auditor" | "employee";
-  area: string;
+  id: string
+  name: string
+  email: string
+  role: "admin" | "delivery_manager" | "auditor" | "employee"
+  area: string
 }
 
-//Interfaz Del Login
 export interface LoginResponse {
-  access_token: string;
-  token_type: string;
-  user: User;
+  access_token: string
+  token_type: string
+  user: User
 }
 
-//Interfaz de lo datos que viene del backend de producto
 export interface Product {
-  type: string;
-  stock_minimo: number;
-  stock_actual: number;
-  id: number;
-  name: string;
-  category: "uniform" | "medication";
-  current_stock: number;
-  minimum_stock: number;
-  unit: string;
-  created_at: string;
-  updated_at: string;
+  id: number
+  name: string
+  category: "uniform" | "medication"
+  current_stock: number
+  minimum_stock: number
+  unit: string
+  created_at: string
+  updated_at: string
 }
 
-//Interfaz De los datos que viene del backed de empleados
 export interface Employee {
-  id: number;
-  CodigoEmpleado: string;
-  nombre: string;
-  apellido: string;
-  area: string;
-  cargo: string;
-  activo: boolean;
+  id: number
+  name: string
+  first_name?: string
+  last_name?: string
+  email: string
+  area: string
+  position: string
+  created_at: string
 }
 
-//Intefaz de los datos que viene del backed de las entradas
-export interface StockEntry {
-  id: number;
-  product_id: number;
-  quantity: number;
-  supplier: string;
-  entry_date: string;
-  notes?: string;
-  created_by: string;
-  created_at: string;
-  product?: Product;
-}
-
-//Intefaz de datos que viene desde el backend de la Salidad
-export interface StockExit {
-  id: number;
-  product_id: number;
-  employee_id: number;
-  quantity: number;
-  exit_date: string;
-  status: "delivered" | "returned";
-  notes?: string;
-  signature?: string;
-  created_by: string;
-  created_at: string;
-  product?: Product;
-  employee?: Employee;
-}
-
-//
-export interface DashboardStats {
-  [x: string]: ReactNode;
-  total_stock: number;
-  entries_this_month: number;
-  exits_this_month: number;
-  low_stock_alerts: number;
-   recent_activity: Array<{
-    date: string | number | Date;
-     id: number;
-     type: "entry" | "exit";
-     description: string;
-     created_at: string;
-   }>;
-
-  
-   low_stock_products: Array<{
-     id: number;
-     name: string;
-     current_stock: number;
-     minimum_stock: number;
-   }>;
-}
-
-// Helper to get full employee name
+// Helper function to get employee full name
 export function getEmployeeFullName(employee: Employee): string {
-  return `${employee.nombre} ${employee.apellido}`;
+  if (employee.first_name && employee.last_name) {
+    return `${employee.first_name} ${employee.last_name}`
+  }
+  return employee.name || "Sin nombre"
+}
+
+export interface StockEntry {
+  id: number
+  product_id: number
+  quantity: number
+  supplier: string
+  entry_date: string
+  notes?: string
+  created_by: string
+  created_at: string
+  product?: Product
+}
+
+export interface StockExit {
+  id: number
+  product_id: number
+  employee_id: number
+  quantity: number
+  exit_date: string
+  status: "delivered" | "returned"
+  notes?: string
+  signature?: string
+  created_by: string
+  created_at: string
+  product?: Product
+  employee?: Employee
+}
+
+export interface DashboardStats {
+  total_stock: number
+  entries_this_month: number
+  exits_this_month: number
+  low_stock_alerts: number
+  recent_activity: Array<{
+    id: number
+    type: "entry" | "exit"
+    description: string
+    created_at: string
+  }>
+  low_stock_products: Array<{
+    id: number
+    name: string
+    current_stock: number
+    minimum_stock: number
+  }>
 }
 
 // API Client
 export const api = {
   // Autenticación
   auth: {
-    login: async (email: string, password: string) => {
+    login: async (username: string, password: string) => {
       // FastAPI OAuth2 espera form data, no JSON
-      const formData = new URLSearchParams();
-      formData.append("username", email);
-      formData.append("password", password);
+      const formData = new URLSearchParams()
+      formData.append("username", username)
+      formData.append("password", password)
 
-      return fetch(`${API_URL}/api/auth/token`, {
+      console.log("[v0] Login attempt to:", `${API_URL}/api/auth/token`)
+      console.log("[v0] Username:", username)
+
+      const response = await fetch(`${API_URL}/api/auth/token`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: formData.toString(),
-      }).then(async (response) => {
-        if (!response.ok) {
-          alert('1231231')
-          
-          const error = await response
-            .json()
-            .catch(() => ({ detail: "Error desconocido" }));
-         
-            throw new Error(error.detail || `Error ${response.status}`);
-        }
+      })
 
-        console.log( "OK");
-        return response.json();
-      });
+      console.log("[v0] Login response status:", response.status)
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: "Error desconocido" }))
+        console.log("[v0] Login error:", error)
+        throw new Error(error.detail || `Error ${response.status}`)
+      }
+
+      const data = await response.json()
+      console.log("[v0] Login success, token received:", data.access_token ? "Yes" : "No")
+      return data
     },
 
     getCurrentUser: () => fetchAPI<User>("/api/auth/me"),
@@ -196,11 +162,11 @@ export const api = {
   // Productos
   products: {
     getAll: (params?: { category?: string; search?: string }) => {
-      const queryParams = new URLSearchParams();
-      if (params?.category) queryParams.append("category", params.category);
-      if (params?.search) queryParams.append("search", params.search);
-      const query = queryParams.toString();
-      return fetchAPI<Product[]>(`/api/products${query ? `?${query}` : ""}`);
+      const queryParams = new URLSearchParams()
+      if (params?.category) queryParams.append("category", params.category)
+      if (params?.search) queryParams.append("search", params.search)
+      const query = queryParams.toString()
+      return fetchAPI<Product[]>(`/api/products${query ? `?${query}` : ""}`)
     },
 
     getById: (id: number) => fetchAPI<Product>(`/api/products/${id}`),
@@ -230,16 +196,16 @@ export const api = {
   // Empleados
   employees: {
     getAll: (params?: { search?: string; area?: string }) => {
-      const queryParams = new URLSearchParams();
-      if (params?.search) queryParams.append("search", params.search);
-      if (params?.area) queryParams.append("area", params.area);
-      const query = queryParams.toString();
-      return fetchAPI<Employee[]>(`/api/empleado/${query ? `?${query}` : ""}`);
+      const queryParams = new URLSearchParams()
+      if (params?.search) queryParams.append("search", params.search)
+      if (params?.area) queryParams.append("area", params.area)
+      const query = queryParams.toString()
+      return fetchAPI<Employee[]>(`/api/empleado/${query ? `?${query}` : ""}`)
     },
 
-    getById: (id: number) => fetchAPI<Employee>(`/api/empleado/${id}`),
+    //getById: (id: number) => fetchAPI<Employee>(`/api/empleado/${id}`),
 
-    create: (data: Omit<Employee, "id">) =>
+    create: (data: Omit<Employee, "id" | "created_at">) =>
       fetchAPI<Employee>("/api/empleado", {
         method: "POST",
         body: JSON.stringify(data),
@@ -248,108 +214,111 @@ export const api = {
 
   // Entradas de stock
   entries: {
-    getAll: (params?: {
-      start_date?: string;
-      end_date?: string;
-      product_id?: number;
-    }) => {
-      const queryParams = new URLSearchParams();
-      if (params?.start_date)
-        queryParams.append("start_date", params.start_date);
-      if (params?.end_date) queryParams.append("end_date", params.end_date);
-      if (params?.product_id)
-        queryParams.append("product_id", params.product_id.toString());
-      const query = queryParams.toString();
-      return fetchAPI<StockEntry[]>(`/api/entries${query ? `?${query}` : ""}`);
+    getAll: (params?: { start_date?: string; end_date?: string; product_id?: number }) => {
+      const queryParams = new URLSearchParams()
+      if (params?.start_date) queryParams.append("start_date", params.start_date)
+      if (params?.end_date) queryParams.append("end_date", params.end_date)
+      if (params?.product_id) queryParams.append("product_id", params.product_id.toString())
+      const query = queryParams.toString()
+      return fetchAPI<StockEntry[]>(`/api/entries${query ? `?${query}` : ""}`)
     },
 
-    getRecent: (limit = 10) =>
-      fetchAPI<StockEntry[]>(`/api/entries/recent?limit=${limit}`),
+    getRecent: (limit = 10) => fetchAPI<StockEntry[]>(`/api/entries/recent?limit=${limit}`),
 
     getById: (id: number) => fetchAPI<StockEntry>(`/api/entries/${id}`),
 
-    create: (
-      data: Omit<StockEntry, "id" | "created_at" | "created_by" | "product">
-    ) =>
+    create: (data: Omit<StockEntry, "id" | "created_at" | "created_by" | "product">) =>
       fetchAPI<StockEntry>("/api/entries", {
         method: "POST",
         body: JSON.stringify(data),
       }),
   },
 
-  // Salidas de stock.
+  // Salidas de stock
   exits: {
-    getAll: (params?: {
-      start_date?: string;
-      end_date?: string;
-      employee_id?: number;
-      product_id?: number;
-    }) => {
-      const queryParams = new URLSearchParams();
-      if (params?.start_date)
-        queryParams.append("start_date", params.start_date);
-      if (params?.end_date) queryParams.append("end_date", params.end_date);
-      if (params?.employee_id)
-        queryParams.append("employee_id", params.employee_id.toString());
-      if (params?.product_id)
-        queryParams.append("product_id", params.product_id.toString());
-      const query = queryParams.toString();
-      return fetchAPI<StockExit[]>(`/api/exits${query ? `?${query}` : ""}`);
+    getAll: (params?: { start_date?: string; end_date?: string; employee_id?: number; product_id?: number }) => {
+      const queryParams = new URLSearchParams()
+      if (params?.start_date) queryParams.append("start_date", params.start_date)
+      if (params?.end_date) queryParams.append("end_date", params.end_date)
+      if (params?.employee_id) queryParams.append("employee_id", params.employee_id.toString())
+      if (params?.product_id) queryParams.append("product_id", params.product_id.toString())
+      const query = queryParams.toString()
+      return fetchAPI<StockExit[]>(`/api/exits${query ? `?${query}` : ""}`)
     },
 
     getById: (id: number) => fetchAPI<StockExit>(`/api/exits/${id}`),
 
-    create: (
-      data: Omit<
-        StockExit,
-        "id" | "created_at" | "created_by" | "product" | "employee"
-      >
-    ) =>
+    create: (data: Omit<StockExit, "id" | "created_at" | "created_by" | "product" | "employee">) =>
       fetchAPI<StockExit>("/api/exits", {
         method: "POST",
         body: JSON.stringify(data),
       }),
   },
 
-  // Reportes.
+  // Uniformes
+  uniforme: {
+    getAll: () => fetchAPI<any[]>("/api/uniforme"),
+    getDeliveries: () => fetchAPI<any[]>("/api/uniforme/entrega"),
+    createDelivery: (data: any) =>
+      fetchAPI<any>("/api/uniforme/entrega", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+  },
+
+  // Medicamentos
+  medicamento: {
+    getAll: () => fetchAPI<any[]>("/api/medicamento"),
+    getDeliveries: () => fetchAPI<any[]>("/api/medicamento/entrega"),
+    createDelivery: (data: any) =>
+      fetchAPI<any>("/api/medicamento/entrega", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+  },
+
+  // Reportes
   reports: {
     getMovements: (params: {
-      start_date?: string;
-      end_date?: string;
-      employee_id?: number;
-      product_type?: string;
+      start_date?: string
+      end_date?: string
+      employee_id?: number
+      product_type?: string
     }) => {
-      const queryParams = new URLSearchParams();
-      if (params.start_date)
-        queryParams.append("start_date", params.start_date);
-      if (params.end_date) queryParams.append("end_date", params.end_date);
-      if (params.employee_id)
-        queryParams.append("employee_id", params.employee_id.toString());
-      if (params.product_type)
-        queryParams.append("product_type", params.product_type);
-      return fetchAPI<any[]>(
-        `/api/reportes/movements?${queryParams.toString()}`
-      );
+      const queryParams = new URLSearchParams()
+      if (params.start_date) queryParams.append("start_date", params.start_date)
+      if (params.end_date) queryParams.append("end_date", params.end_date)
+      if (params.employee_id) queryParams.append("employee_id", params.employee_id.toString())
+      if (params.product_type) queryParams.append("product_type", params.product_type)
+      return fetchAPI<any[]>(`/api/reportes/movements?${queryParams.toString()}`)
     },
 
-    //Funcion Para descarga el excel Del reporte.
-    exportCSV: (params: {
-      start_date?: string;
-      end_date?: string;
-      employee_id?: number;
-      product_type?: string;
+    exportCSV: async (params: {
+      start_date?: string
+      end_date?: string
+      employee_id?: number
+      product_type?: string
     }) => {
-      const queryParams = new URLSearchParams();
-      if (params.start_date)
-        queryParams.append("start_date", params.start_date);
-      if (params.end_date) queryParams.append("end_date", params.end_date);
-      if (params.employee_id)
-        queryParams.append("employee_id", params.employee_id.toString());
-      if (params.product_type)
-        queryParams.append("product_type", params.product_type);
+      const queryParams = new URLSearchParams()
+      if (params.start_date) queryParams.append("start_date", params.start_date)
+      if (params.end_date) queryParams.append("end_date", params.end_date)
+      if (params.employee_id) queryParams.append("employee_id", params.employee_id.toString())
+      if (params.product_type) queryParams.append("product_type", params.product_type)
 
-      // Para descarga de archivos, retornamos la URL.
-      return `${API_URL}/api/reportes/export?${queryParams.toString()}`;
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+      
+      const response = await fetch(`${API_URL}/api/reportes/export?${queryParams.toString()}`, {
+        method: "GET",
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`)
+      }
+
+      return response.blob()
     },
   },
-};
+}
