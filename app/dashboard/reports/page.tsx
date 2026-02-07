@@ -1,36 +1,55 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { FileText, Download, Filter, TrendingUp, TrendingDown } from "lucide-react"
-import { api, Product, Employee, getEmployeeFullName } from "@/lib/api-client"
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  FileText,
+  Download,
+  Filter,
+  TrendingUp,
+  TrendingDown,
+} from "lucide-react";
+import { api, Product, Employee, getEmployeeFullName } from "@/lib/api-client";
 
 interface ReportData {
-  id: number
-  type: "entry" | "exit"
-  product_name: string
-  category: string
-  quantity: number
-  employee_name?: string
-  area?: string
-  supplier?: string
-  date: string
-  size?: string
-  firma?: string
+  id: number;
+  type: "entry" | "exit";
+  product_name: string;
+  category: string;
+  quantity: number;
+  employee_name?: string;
+  area?: string;
+  supplier?: string;
+  date: string;
+  size?: string;
+  firma?: string;
 }
 
 export default function ReportsPage() {
-  const [reportData, setReportData] = useState<ReportData[]>([])
-  const [products, setProducts] = useState<Product[]>([])
-  const [employees, setEmployees] = useState<Employee[]>([])
-  const [loading, setLoading] = useState(false)
+  const [reportData, setReportData] = useState<ReportData[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
     startDate: "",
     endDate: "",
@@ -38,76 +57,80 @@ export default function ReportsPage() {
     productId: "all",
     category: "all",
     type: "all",
-  })
+  });
 
   useEffect(() => {
-    loadProducts()
-    loadEmployees()
-  }, [])
+    loadProducts();
+    loadEmployees();
+  }, []);
 
   async function loadProducts() {
     try {
-      const data = await api.products.getAll()
-      setProducts(data)
+      const data = await api.products.getAll();
+      setProducts(data);
     } catch (error) {
-      console.error("Error loading products:", error)
+      console.error("Error loading products:", error);
     }
   }
 
   async function loadEmployees() {
     try {
-      const data = await api.employees.getAll()
-      setEmployees(data)
+      const data = await api.employees.getAll();
+      setEmployees(data);
     } catch (error) {
-      console.error("Error loading employees:", error)
+      console.error("Error loading employees:", error);
     }
   }
 
   async function exportExcel() {
-  try {
-    const blob = await api.reports.exportCSV({
-      start_date: filters.startDate || undefined,
-      end_date: filters.endDate || undefined,
-      employee_id: filters.employeeId !== "all" ? Number(filters.employeeId) : undefined,
-      product_type: filters.category  !== "all" ? filters.category : undefined,
-    })
+    try {
+      const blob = await api.reports.exportCSV({
+        start_date: filters.startDate || undefined,
+        end_date: filters.endDate || undefined,
+        employee_id:
+          filters.employeeId !== "all" ? Number(filters.employeeId) : undefined,
+        product_type: filters.category !== "all" ? filters.category : undefined,
+      });
 
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `reporte_${new Date().toISOString().split("T")[0]}.xlsx`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    window.URL.revokeObjectURL(url)
-  } catch (error) {
-    console.error("Error exportando Excel:", error)
-    alert("Error al exportar el reporte")
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `reporte_${new Date().toISOString().split("T")[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error exportando Excel:", error);
+      alert("Error al exportar el reporte");
+    }
   }
-}
-
 
   async function loadReportData() {
-    setLoading(true)
+    setLoading(true);
     try {
       const [entries, uniformDel, medDel] = await Promise.all([
         api.entries.getAll(),
         api.uniforme.getDeliveries(),
         api.medicamento.getDeliveries(),
-      ])
+      ]);
 
-      const allData: ReportData[] = []
+      const allData: ReportData[] = [];
 
       // Process entries
       if (Array.isArray(entries)) {
         entries.forEach((entry: any) => {
-          const entryDate = new Date(entry.entry_date)
+          const entryDate = new Date(entry.entry_date);
           if (
             (!filters.startDate || entryDate >= new Date(filters.startDate)) &&
             (!filters.endDate || entryDate <= new Date(filters.endDate)) &&
             (filters.type === "all" || filters.type === "entry") &&
-            (filters.category === "all" || entry.product_type === filters.category) &&
-            (filters.productId === "all" || entry.product_name === products.find(p => p.id.toString() === filters.productId)?.name)
+            (filters.category === "all" ||
+              entry.product_type === filters.category) &&
+            (filters.productId === "all" ||
+              entry.product_name ===
+                products.find((p) => p.id.toString() === filters.productId)
+                  ?.name)
           ) {
             allData.push({
               id: entry.id,
@@ -117,23 +140,27 @@ export default function ReportsPage() {
               quantity: entry.quantity,
               supplier: entry.supplier,
               date: entry.entry_date,
-            })
+            });
           }
-        })
+        });
       }
 
       // Process uniform deliveries
       if (Array.isArray(uniformDel)) {
         uniformDel.forEach((del: any) => {
-          const delDate = new Date(del.created_at)
-          const uniformName = del.uniforme_name || del.name || "Uniforme"
+          const delDate = new Date(del.created_at);
+          const uniformName = del.uniforme_name || del.name || "Uniforme";
           if (
             (!filters.startDate || delDate >= new Date(filters.startDate)) &&
             (!filters.endDate || delDate <= new Date(filters.endDate)) &&
             (filters.type === "all" || filters.type === "exit") &&
             (filters.category === "all" || filters.category === "uniform") &&
-            (filters.employeeId === "all" || del.empleado_id === Number.parseInt(filters.employeeId)) &&
-            (filters.productId === "all" || uniformName === products.find(p => p.id.toString() === filters.productId)?.name)
+            (filters.employeeId === "all" ||
+              del.empleado_id === Number.parseInt(filters.employeeId)) &&
+            (filters.productId === "all" ||
+              uniformName ===
+                products.find((p) => p.id.toString() === filters.productId)
+                  ?.name)
           ) {
             allData.push({
               id: del.id,
@@ -146,23 +173,27 @@ export default function ReportsPage() {
               size: del.size || del.talla || "",
               firma: del.firma || "",
               date: del.created_at,
-            })
+            });
           }
-        })
+        });
       }
 
       // Process medication deliveries
       if (Array.isArray(medDel)) {
         medDel.forEach((del: any) => {
-          const delDate = new Date(del.created_at)
-          const medName = del.medicamento_name || del.name || "Medicamento"
+          const delDate = new Date(del.created_at);
+          const medName = del.medicamento_name || del.name || "Medicamento";
           if (
             (!filters.startDate || delDate >= new Date(filters.startDate)) &&
             (!filters.endDate || delDate <= new Date(filters.endDate)) &&
             (filters.type === "all" || filters.type === "exit") &&
             (filters.category === "all" || filters.category === "medication") &&
-            (filters.employeeId === "all" || del.empleado_id === Number.parseInt(filters.employeeId)) &&
-            (filters.productId === "all" || medName === products.find(p => p.id.toString() === filters.productId)?.name)
+            (filters.employeeId === "all" ||
+              del.empleado_id === Number.parseInt(filters.employeeId)) &&
+            (filters.productId === "all" ||
+              medName ===
+                products.find((p) => p.id.toString() === filters.productId)
+                  ?.name)
           ) {
             allData.push({
               id: del.id,
@@ -174,17 +205,19 @@ export default function ReportsPage() {
               area: del.area || del.Area || "",
               firma: del.firma || "",
               date: del.created_at,
-            })
+            });
           }
-        })
+        });
       }
 
-      allData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      setReportData(allData)
+      allData.sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      );
+      setReportData(allData);
     } catch (error) {
-      console.error("Error loading report data:", error)
+      console.error("Error loading report data:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -192,11 +225,23 @@ export default function ReportsPage() {
 
   function exportToCSV() {
     if (reportData.length === 0) {
-      alert("No hay datos para exportar")
-      return
+      alert("No hay datos para exportar");
+      return;
     }
 
-    const headers = ["ID", "Tipo", "Fecha", "Producto", "Categoria", "Cantidad", "Empleado", "Area", "Talla", "Proveedor", "Firma"]
+    const headers = [
+      "ID",
+      "Tipo",
+      "Fecha",
+      "Producto",
+      "Categoria",
+      "Cantidad",
+      "Empleado",
+      "Area",
+      "Talla",
+      "Proveedor",
+      "Firma",
+    ];
 
     const rows = reportData.map((item) => [
       item.id,
@@ -210,50 +255,66 @@ export default function ReportsPage() {
       item.size || "-",
       item.supplier || "-",
       item.firma ? "Si" : "No",
-    ])
+    ]);
 
     // Agregar BOM para que Excel reconozca UTF-8 correctamente
-    const BOM = "\uFEFF"
-    const csvContent = BOM + [headers, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(",")).join("\n")
+    const BOM = "\uFEFF";
+    const csvContent =
+      BOM +
+      [headers, ...rows]
+        .map((row) => row.map((cell) => `"${cell}"`).join(","))
+        .join("\n");
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-    const link = document.createElement("a")
-    const url = URL.createObjectURL(blob)
-    link.setAttribute("href", url)
-    link.setAttribute("download", `reporte_movimientos_${new Date().toISOString().split("T")[0]}.csv`)
-    link.style.visibility = "hidden"
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `reporte_movimientos_${new Date().toISOString().split("T")[0]}.csv`,
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 
   const stats = {
     totalMovements: reportData.length,
     totalEntries: reportData.filter((r) => r.type === "entry").length,
     totalExits: reportData.filter((r) => r.type === "exit").length,
-    totalQuantityIn: reportData.filter((r) => r.type === "entry").reduce((sum, r) => sum + r.quantity, 0),
-    totalQuantityOut: reportData.filter((r) => r.type === "exit").reduce((sum, r) => sum + r.quantity, 0),
-  }
+    totalQuantityIn: reportData
+      .filter((r) => r.type === "entry")
+      .reduce((sum, r) => sum + r.quantity, 0),
+    totalQuantityOut: reportData
+      .filter((r) => r.type === "exit")
+      .reduce((sum, r) => sum + r.quantity, 0),
+  };
 
   return (
     <div className="space-y-4 md:space-y-6 p-4 md:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Reportes y Auditoría</h1>
-          <p className="text-sm md:text-base text-muted-foreground mt-1">Historial completo de movimientos</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+            Reportes y Auditoría
+          </h1>
+          <p className="text-sm md:text-base text-muted-foreground mt-1">
+            Historial completo de movimientos
+          </p>
         </div>
-  <Button onClick={exportExcel} className="w-full sm:w-auto">
-  <Download className="h-4 w-4 mr-2" />
-  Exportar Excel
-</Button>
-
+        <Button onClick={exportExcel} className="w-full sm:w-auto">
+          <Download className="h-4 w-4 mr-2" />
+          Exportar Excel
+        </Button>
       </div>
 
       <Card className="p-4 md:p-6">
         <div className="flex items-center gap-2 mb-4">
           <Filter className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
-          <h2 className="text-base md:text-lg font-semibold">Filtros de Búsqueda</h2>
+          <h2 className="text-base md:text-lg font-semibold">
+            Filtros de Búsqueda
+          </h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -265,7 +326,9 @@ export default function ReportsPage() {
               id="startDate"
               type="date"
               value={filters.startDate}
-              onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+              onChange={(e) =>
+                setFilters({ ...filters, startDate: e.target.value })
+              }
               className="text-sm"
             />
           </div>
@@ -278,7 +341,9 @@ export default function ReportsPage() {
               id="endDate"
               type="date"
               value={filters.endDate}
-              onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+              onChange={(e) =>
+                setFilters({...filters, endDate: e.target.value })
+              }
               className="text-sm"
             />
           </div>
@@ -287,7 +352,10 @@ export default function ReportsPage() {
             <Label htmlFor="type" className="text-sm">
               Tipo de Movimiento
             </Label>
-            <Select value={filters.type} onValueChange={(value) => setFilters({ ...filters, type: value })}>
+            <Select
+              value={filters.type}
+              onValueChange={(value) => setFilters({ ...filters, type: value })}
+            >
               <SelectTrigger className="text-sm">
                 <SelectValue />
               </SelectTrigger>
@@ -303,7 +371,12 @@ export default function ReportsPage() {
             <Label htmlFor="category" className="text-sm">
               Categoría
             </Label>
-            <Select value={filters.category} onValueChange={(value) => setFilters({ ...filters, category: value })}>
+            <Select
+              value={filters.category}
+              onValueChange={(value) =>
+                setFilters({ ...filters, category: value })
+              }
+            >
               <SelectTrigger className="text-sm">
                 <SelectValue />
               </SelectTrigger>
@@ -319,14 +392,22 @@ export default function ReportsPage() {
             <Label htmlFor="productId" className="text-sm">
               Producto
             </Label>
-            <Select value={filters.productId} onValueChange={(value) => setFilters({ ...filters, productId: value })}>
+            <Select
+              value={filters.productId}
+              onValueChange={(value) =>
+                setFilters({ ...filters, productId: value })
+              }
+            >
               <SelectTrigger className="text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los productos</SelectItem>
                 {products.map((product) => (
-                  <SelectItem key={`${product.type || product.category}-${product.id}`} value={product.id.toString()}>
+                  <SelectItem
+                    key={`${product.type || product.category}-${product.id}`}
+                    value={product.id.toString()}
+                  >
                     {product.name}
                   </SelectItem>
                 ))}
@@ -338,7 +419,12 @@ export default function ReportsPage() {
             <Label htmlFor="employeeId" className="text-sm">
               Empleado
             </Label>
-            <Select value={filters.employeeId} onValueChange={(value) => setFilters({ ...filters, employeeId: value })}>
+            <Select
+              value={filters.employeeId}
+              onValueChange={(value) =>
+                setFilters({ ...filters, employeeId: value })
+              }
+            >
               <SelectTrigger className="text-sm">
                 <SelectValue />
               </SelectTrigger>
@@ -354,10 +440,12 @@ export default function ReportsPage() {
           </div>
         </div>
 
-
-
         <div className="flex justify-end mt-4">
-          <Button onClick={loadReportData} disabled={loading} className="w-full sm:w-auto">
+          <Button
+            onClick={loadReportData}
+            disabled={loading}
+            className="w-full sm:w-auto"
+          >
             <FileText className="h-4 w-4 mr-2" />
             {loading ? "Generando..." : "Generar Reporte"}
           </Button>
@@ -372,8 +460,12 @@ export default function ReportsPage() {
                 <FileText className="h-4 w-4 md:h-5 md:w-5 text-primary" />
               </div>
               <div>
-                <p className="text-xs md:text-sm text-muted-foreground">Total</p>
-                <p className="text-xl md:text-2xl font-bold">{stats.totalMovements}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  Total
+                </p>
+                <p className="text-xl md:text-2xl font-bold">
+                  {stats.totalMovements}
+                </p>
               </div>
             </div>
           </Card>
@@ -384,8 +476,12 @@ export default function ReportsPage() {
                 <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-green-500" />
               </div>
               <div>
-                <p className="text-xs md:text-sm text-muted-foreground">Entradas</p>
-                <p className="text-xl md:text-2xl font-bold text-green-600">{stats.totalEntries}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  Entradas
+                </p>
+                <p className="text-xl md:text-2xl font-bold text-green-600">
+                  {stats.totalEntries}
+                </p>
               </div>
             </div>
           </Card>
@@ -396,8 +492,12 @@ export default function ReportsPage() {
                 <TrendingDown className="h-4 w-4 md:h-5 md:w-5 text-orange-500" />
               </div>
               <div>
-                <p className="text-xs md:text-sm text-muted-foreground">Salidas</p>
-                <p className="text-xl md:text-2xl font-bold text-orange-600">{stats.totalExits}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  Salidas
+                </p>
+                <p className="text-xl md:text-2xl font-bold text-orange-600">
+                  {stats.totalExits}
+                </p>
               </div>
             </div>
           </Card>
@@ -408,8 +508,12 @@ export default function ReportsPage() {
                 <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-blue-500" />
               </div>
               <div>
-                <p className="text-xs md:text-sm text-muted-foreground">Cant. Ingresada</p>
-                <p className="text-xl md:text-2xl font-bold">{stats.totalQuantityIn}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  Cant. Ingresada
+                </p>
+                <p className="text-xl md:text-2xl font-bold">
+                  {stats.totalQuantityIn}
+                </p>
               </div>
             </div>
           </Card>
@@ -420,8 +524,12 @@ export default function ReportsPage() {
                 <TrendingDown className="h-4 w-4 md:h-5 md:w-5 text-purple-500" />
               </div>
               <div>
-                <p className="text-xs md:text-sm text-muted-foreground">Cant. Entregada</p>
-                <p className="text-xl md:text-2xl font-bold">{stats.totalQuantityOut}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  Cant. Entregada
+                </p>
+                <p className="text-xl md:text-2xl font-bold">
+                  {stats.totalQuantityOut}
+                </p>
               </div>
             </div>
           </Card>
@@ -460,29 +568,50 @@ export default function ReportsPage() {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-sm">
+                      <TableCell
+                        colSpan={6}
+                        className="text-center py-8 text-muted-foreground text-sm"
+                      >
                         Cargando datos...
                       </TableCell>
                     </TableRow>
                   ) : reportData.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-sm">
+                      <TableCell
+                        colSpan={6}
+                        className="text-center py-8 text-muted-foreground text-sm"
+                      >
                         Seleccione un rango de fechas y genere el reporte
                       </TableCell>
                     </TableRow>
                   ) : (
                     reportData.map((item) => (
                       <TableRow key={`${item.type}-${item.id}`}>
-                        <TableCell className="font-mono text-xs md:text-sm">{item.id}</TableCell>
+                        <TableCell className="font-mono text-xs md:text-sm">
+                          {item.id}
+                        </TableCell>
                         <TableCell>
-                          <Badge variant={item.type === "entry" ? "default" : "secondary"} className="text-xs">
+                          <Badge
+                            variant={
+                              item.type === "entry" ? "default" : "secondary"
+                            }
+                            className="text-xs"
+                          >
                             {item.type === "entry" ? "Entrada" : "Salida"}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-xs md:text-sm">{new Date(item.date).toLocaleDateString()}</TableCell>
-                        <TableCell className="text-xs md:text-sm">{item.product_name}</TableCell>
-                        <TableCell className="text-xs md:text-sm">{item.quantity}</TableCell>
-                        <TableCell className="text-xs md:text-sm">{item.area || item.supplier || "-"}</TableCell>
+                        <TableCell className="text-xs md:text-sm">
+                          {new Date(item.date).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-xs md:text-sm">
+                          {item.product_name}
+                        </TableCell>
+                        <TableCell className="text-xs md:text-sm">
+                          {item.quantity}
+                        </TableCell>
+                        <TableCell className="text-xs md:text-sm">
+                          {item.area || item.supplier || "-"}
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -506,7 +635,10 @@ export default function ReportsPage() {
                 <TableBody>
                   {reportData.filter((r) => r.type === "entry").length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-sm">
+                      <TableCell
+                        colSpan={5}
+                        className="text-center py-8 text-muted-foreground text-sm"
+                      >
                         No hay entradas en el período seleccionado
                       </TableCell>
                     </TableRow>
@@ -515,13 +647,21 @@ export default function ReportsPage() {
                       .filter((r) => r.type === "entry")
                       .map((item) => (
                         <TableRow key={item.id}>
-                          <TableCell className="font-mono text-xs md:text-sm">{item.id}</TableCell>
+                          <TableCell className="font-mono text-xs md:text-sm">
+                            {item.id}
+                          </TableCell>
                           <TableCell className="text-xs md:text-sm">
                             {new Date(item.date).toLocaleDateString()}
                           </TableCell>
-                          <TableCell className="text-xs md:text-sm">{item.product_name}</TableCell>
-                          <TableCell className="text-xs md:text-sm">{item.quantity}</TableCell>
-                          <TableCell className="text-xs md:text-sm">{item.supplier}</TableCell>
+                          <TableCell className="text-xs md:text-sm">
+                            {item.product_name}
+                          </TableCell>
+                          <TableCell className="text-xs md:text-sm">
+                            {item.quantity}
+                          </TableCell>
+                          <TableCell className="text-xs md:text-sm">
+                            {item.supplier}
+                          </TableCell>
                         </TableRow>
                       ))
                   )}
@@ -545,7 +685,10 @@ export default function ReportsPage() {
                 <TableBody>
                   {reportData.filter((r) => r.type === "exit").length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-sm">
+                      <TableCell
+                        colSpan={5}
+                        className="text-center py-8 text-muted-foreground text-sm"
+                      >
                         No hay salidas en el período seleccionado
                       </TableCell>
                     </TableRow>
@@ -554,13 +697,21 @@ export default function ReportsPage() {
                       .filter((r) => r.type === "exit")
                       .map((item) => (
                         <TableRow key={item.id}>
-                          <TableCell className="font-mono text-xs md:text-sm">{item.id}</TableCell>
+                          <TableCell className="font-mono text-xs md:text-sm">
+                            {item.id}
+                          </TableCell>
                           <TableCell className="text-xs md:text-sm">
                             {new Date(item.date).toLocaleDateString()}
                           </TableCell>
-                          <TableCell className="text-xs md:text-sm">{item.product_name}</TableCell>
-                          <TableCell className="text-xs md:text-sm">{item.quantity}</TableCell>
-                          <TableCell className="text-xs md:text-sm">{item.area}</TableCell>
+                          <TableCell className="text-xs md:text-sm">
+                            {item.product_name}
+                          </TableCell>
+                          <TableCell className="text-xs md:text-sm">
+                            {item.quantity}
+                          </TableCell>
+                          <TableCell className="text-xs md:text-sm">
+                            {item.area}
+                          </TableCell>
                         </TableRow>
                       ))
                   )}
@@ -571,5 +722,5 @@ export default function ReportsPage() {
         </Tabs>
       </Card>
     </div>
-  )
+  );
 }
